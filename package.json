@@ -1,0 +1,33 @@
+{
+  "name": "sofem-mes",
+  "version": "1.0.0",
+  "private": true,
+  "description": "SOFEM MES - Manufacturing Execution System",
+  "workspaces": [
+    "frontend",
+    "backend-ts"
+  ],
+  "scripts": {
+    "dev:frontend": "npm run dev --workspace=frontend",
+    "dev:backend": "npm run dev --workspace=backend-ts",
+    "dev": "concurrently \"npm run dev:backend\" \"npm run dev:frontend\"",
+    "build:frontend": "npm run build --workspace=frontend",
+    "build:backend": "npm run build --workspace=backend-ts",
+    "build": "npm run build:backend && npm run build:frontend",
+    "test:frontend": "npm run test --workspace=frontend",
+    "test:backend": "npm run test --workspace=backend-ts",
+    "test": "npm run test:backend && npm run test:frontend",
+    "lint:frontend": "npm run lint --workspace=frontend",
+    "lint:backend": "npm run lint --workspace=backend-ts",
+    "lint": "npm run lint:backend && npm run lint:frontend",
+    "db:up": "docker-compose up -d postgres",
+    "db:down": "docker-compose down",
+    "db:migrate": "npm run migrate --workspace=backend-ts"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}
