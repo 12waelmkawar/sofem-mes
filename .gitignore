@@ -1,67 +1,8 @@
-# Dependencies
 node_modules/
-.pnp
-.pnp.js
-
-# Build outputs
 dist/
-build/
-*.local
-
-# Environment files
+*.log
 .env
 .env.local
-.env.development.local
-.env.test.local
-.env.production.local
-
-# IDE
-.vscode/
-.idea/
-*.swp
-*.swo
-*~
-
-# OS
-.DS_Store
-Thumbs.db
-desktop.ini
-
-# Logs
-*.log
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-pnpm-debug.log*
-lerna-debug.log*
-
-# Testing
+.env.*.local
 coverage/
-.nyc_output/
-playwright-report/
-test-results/
-
-# TypeScript
 *.tsbuildinfo
-
-# Vite
-.vite/
-
-# Docker
-docker-compose.override.yml
-
-# Database
-*.db
-*.sqlite
-*.sqlite3
-
-# Temporary files
-tmp/
-temp/
-*.tmp
-
-# Backend compiled output
-backend-ts/dist/
-
-# Frontend compiled output
-frontend/dist/

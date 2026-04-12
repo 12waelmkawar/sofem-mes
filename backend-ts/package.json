@@ -1,37 +1,27 @@
 {
-  "name": "@sofem-mes/backend",
-  "version": "6.0.0",
+  "name": "backend-ts",
   "private": true,
-  "description": "SOFEM MES Backend API",
+  "version": "1.0.0",
   "type": "module",
-  "main": "dist/index.js",
   "scripts": {
     "dev": "tsx watch src/index.ts",
     "build": "tsc",
     "start": "node dist/index.js",
-    "test": "vitest",
-    "test:run": "vitest run",
-    "lint": "eslint src --ext .ts",
-    "migrate": "node-pg-migrate -m db/migrations",
-    "migrate:up": "node-pg-migrate -m db/migrations up",
-    "migrate:down": "node-pg-migrate -m db/migrations down",
-    "migrate:create": "node-pg-migrate -m db/migrations create",
-    "seed": "tsx src/db/seed.ts"
+    "db:migrate": "tsx src/db/migrate.ts",
+    "db:migrate:auth": "tsx db/migrations/up_002_auth_tables.ts",
+    "db:seed": "tsx src/db/seed.ts",
+    "db:reset": "tsx src/db/reset.ts"
   },
   "dependencies": {
-    "@react-pdf/renderer": "^3.3.4",
     "bcryptjs": "^2.4.3",
     "cookie-parser": "^1.4.6",
     "cors": "^2.8.5",
-    "dotenv": "^16.3.1",
+    "dotenv": "^17.4.2",
     "express": "^4.18.2",
-    "express-rate-limit": "^7.1.5",
-    "helmet": "^7.1.0",
+    "helmet": "^8.1.0",
     "jsonwebtoken": "^9.0.2",
-    "node-pg-migrate": "^8.0.4",
-    "pdf-lib": "^1.17.1",
     "pg": "^8.11.3",
-    "uuid": "^9.0.1",
+    "uuid": "^13.0.0",
     "zod": "^3.22.4"
   },
   "devDependencies": {
@@ -40,16 +30,10 @@
     "@types/cors": "^2.8.17",
     "@types/express": "^4.17.21",
     "@types/jsonwebtoken": "^9.0.5",
-    "@types/node": "^20.10.6",
+    "@types/node": "^20.11.0",
     "@types/pg": "^8.10.9",
-    "@types/supertest": "^6.0.2",
-    "@types/uuid": "^9.0.7",
-    "@typescript-eslint/eslint-plugin": "^6.17.0",
-    "@typescript-eslint/parser": "^6.17.0",
-    "eslint": "^8.56.0",
-    "supertest": "^6.3.3",
+    "@types/uuid": "^10.0.0",
     "tsx": "^4.7.0",
-    "typescript": "^5.3.3",
-    "vitest": "^1.1.1"
+    "typescript": "^5.3.3"
   }
 }

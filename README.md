@@ -189,11 +189,17 @@ PostgreSQL 16 with the following tables (29 total):
 - controle_qualite, non_conformites, fournisseurs
 - materiau_fournisseurs, operation_types, settings, activity_log_v2
 
-## User Roles
+## User Roles & PINs
 
-1. **ADMIN**: Full system access
-2. **MANAGER**: Management access
-3. **OPERATOR**: Production floor access
+| Role | PIN | Access Level |
+|------|-----|--------------|
+| **Admin** | 9876 | Full system access |
+| **Manager** | 5432 | Management access |
+| **Mohamed Ben Ali** (Chef d'Atelier) | 1111 | Operator access |
+| **Karim Trabelsi** (Operateur) | 2222 | Operator access |
+| **Ahmed Hamdi** (Operateur) | 3333 | Operator access |
+
+> ⚠️ **Change these PINs in production!** The seed script is for development only.
 
 ## Next Steps
 
