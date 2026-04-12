@@ -1,4 +1,4 @@
-import { MigrationBuilder, ColumnDefinitions } from 'node-pg-migrate';
+import type { MigrationBuilder, ColumnDefinitions } from 'node-pg-migrate';
 
 export const shorthands: ColumnDefinitions | undefined = undefined;
 
@@ -12,34 +12,39 @@ export async function up(pgm: MigrationBuilder): Promise<void> {
   // ==========================================
   // UPDATED_AT TRIGGER FUNCTION (section 9.30.4)
   // ==========================================
-  pgm.createFunction({
-    name: 'update_updated_at_column',
-    language: 'plpgsql',
-    returns: 'TRIGGER',
-    replace: true,
-    definition: `
+  pgm.createFunction(
+    'update_updated_at_column',
+    [],
+    {
+      language: 'plpgsql',
+      returns: 'TRIGGER',
+      replace: true,
+    },
+    `
       BEGIN
         NEW.updated_at = CURRENT_TIMESTAMP;
         RETURN NEW;
       END;
     `
-  });
+  );
 
   // ==========================================
   // DOCUMENT SEQUENCING FUNCTIONS (section 9.1)
   // ==========================================
   
   // nextSeq() - Get next sequence number
-  pgm.createFunction({
-    name: 'nextSeq',
-    language: 'plpgsql',
-    returns: 'TABLE(prefix VARCHAR, year SMALLINT, seq INTEGER)',
-    replace: true,
-    parameters: [
-      { name: 'p_prefix', mode: 'in', type: 'VARCHAR' },
-      { name: 'p_year', mode: 'in', type: 'SMALLINT' }
+  pgm.createFunction(
+    'nextSeq',
+    [
+      { name: 'p_prefix', mode: 'IN', type: 'VARCHAR' },
+      { name: 'p_year', mode: 'IN', type: 'SMALLINT' },
     ],
-    definition: `
+    {
+      language: 'plpgsql',
+      returns: 'TABLE(prefix VARCHAR, year SMALLINT, seq INTEGER)',
+      replace: true,
+    },
+    `
       BEGIN
         RETURN QUERY
         INSERT INTO document_sequences (prefix, year, last_seq)
@@ -49,18 +54,20 @@ export async function up(pgm: MigrationBuilder): Promise<void> {
         RETURNING document_sequences.prefix, document_sequences.year, document_sequences.last_seq AS seq;
       END;
     `
-  });
+  );
 
   // finalizeNumber() - Get formatted document number
-  pgm.createFunction({
-    name: 'finalizeNumber',
-    language: 'plpgsql',
-    returns: 'VARCHAR',
-    replace: true,
-    parameters: [
-      { name: 'p_prefix', mode: 'in', type: 'VARCHAR' }
+  pgm.createFunction(
+    'finalizeNumber',
+    [
+      { name: 'p_prefix', mode: 'IN', type: 'VARCHAR' },
     ],
-    definition: `
+    {
+      language: 'plpgsql',
+      returns: 'VARCHAR',
+      replace: true,
+    },
+    `
       DECLARE
         v_year SMALLINT := EXTRACT(YEAR FROM CURRENT_DATE)::SMALLINT;
         v_seq INTEGER;
@@ -69,18 +76,20 @@ export async function up(pgm: MigrationBuilder): Promise<void> {
         RETURN p_prefix || '-' || v_year || '-' || LPAD(v_seq::TEXT, 4, '0');
       END;
     `
-  });
+  );
 
   // nextCode() - Alias for formatted code string
-  pgm.createFunction({
-    name: 'nextCode',
-    language: 'plpgsql',
-    returns: 'VARCHAR',
-    replace: true,
-    parameters: [
-      { name: 'p_prefix', mode: 'in', type: 'VARCHAR' }
+  pgm.createFunction(
+    'nextCode',
+    [
+      { name: 'p_prefix', mode: 'IN', type: 'VARCHAR' },
     ],
-    definition: `
+    {
+      language: 'plpgsql',
+      returns: 'VARCHAR',
+      replace: true,
+    },
+    `
       DECLARE
         v_year SMALLINT := EXTRACT(YEAR FROM CURRENT_DATE)::SMALLINT;
         v_seq INTEGER;
@@ -89,7 +98,7 @@ export async function up(pgm: MigrationBuilder): Promise<void> {
         RETURN p_prefix || '-' || v_year || '-' || LPAD(v_seq::TEXT, 4, '0');
       END;
     `
-  });
+  );
 
   // ==========================================
   // 1. document_sequences (section 9.1)
@@ -98,7 +107,7 @@ export async function up(pgm: MigrationBuilder): Promise<void> {
     prefix: { type: 'VARCHAR(20)', notNull: true },
     year: { type: 'SMALLINT', notNull: true },
     last_seq: { type: 'INTEGER', notNull: true, default: 0 },
-    updated_at: { type: 'TIMESTAMP', default: 'CURRENT_TIMESTAMP' }
+    updated_at: { type: 'TIMESTAMP', default: pgm.func('CURRENT_TIMESTAMP') }
   }, {
     constraints: {
       primaryKey: ['prefix', 'year']
@@ -114,12 +123,12 @@ export async function up(pgm: MigrationBuilder): Promise<void> {
     prenom: { type: 'VARCHAR', notNull: true },
     role: { type: 'VARCHAR', notNull: true },
     pin_hash: { type: 'VARCHAR', notNull: true },
-    operateur_id: { type: 'INTEGER', references: 'operateurs(id)', onDelete: 'SET NULL' },
+    operateur_id: { type: 'INTEGER' },
     actif: { type: 'BOOLEAN', default: true },
     pin_must_change: { type: 'BOOLEAN', default: false },
     totp_secret: { type: 'VARCHAR' },
     totp_enabled: { type: 'BOOLEAN', default: false },
-    created_at: { type: 'TIMESTAMP', default: 'CURRENT_TIMESTAMP' }
+    created_at: { type: 'TIMESTAMP', default: pgm.func('CURRENT_TIMESTAMP') }
   });
 
   // ==========================================
@@ -139,8 +148,8 @@ export async function up(pgm: MigrationBuilder): Promise<void> {
     deactivated_by: { type: 'INTEGER', references: 'users(id)', onDelete: 'SET NULL' },
     deactivated_at: { type: 'TIMESTAMP' },
     deactivation_reason: { type: 'TEXT' },
-    created_at: { type: 'TIMESTAMP', default: 'CURRENT_TIMESTAMP' },
-    updated_at: { type: 'TIMESTAMP', default: 'CURRENT_TIMESTAMP' }
+    created_at: { type: 'TIMESTAMP', default: pgm.func('CURRENT_TIMESTAMP') },
+    updated_at: { type: 'TIMESTAMP', default: pgm.func('CURRENT_TIMESTAMP') }
   });
 
   // ==========================================
@@ -158,8 +167,8 @@ export async function up(pgm: MigrationBuilder): Promise<void> {
     taux_piece: { type: 'DECIMAL(8,2)', default: 0 },
     type_taux: { type: 'VARCHAR', default: 'HORAIRE' },
     actif: { type: 'BOOLEAN', default: true },
-    created_at: { type: 'TIMESTAMP', default: 'CURRENT_TIMESTAMP' },
-    updated_at: { type: 'TIMESTAMP', default: 'CURRENT_TIMESTAMP' }
+    created_at: { type: 'TIMESTAMP', default: pgm.func('CURRENT_TIMESTAMP') },
+    updated_at: { type: 'TIMESTAMP', default: pgm.func('CURRENT_TIMESTAMP') }
   });
 
   // ==========================================
@@ -173,8 +182,8 @@ export async function up(pgm: MigrationBuilder): Promise<void> {
     unite: { type: 'VARCHAR', default: 'pcs' },
     prix_vente_ht: { type: 'DECIMAL(10,2)', default: 0 },
     actif: { type: 'BOOLEAN', default: true },
-    created_at: { type: 'TIMESTAMP', default: 'CURRENT_TIMESTAMP' },
-    updated_at: { type: 'TIMESTAMP', default: 'CURRENT_TIMESTAMP' }
+    created_at: { type: 'TIMESTAMP', default: pgm.func('CURRENT_TIMESTAMP') },
+    updated_at: { type: 'TIMESTAMP', default: pgm.func('CURRENT_TIMESTAMP') }
   });
 
   // ==========================================
@@ -193,8 +202,8 @@ export async function up(pgm: MigrationBuilder): Promise<void> {
     deactivated_by: { type: 'INTEGER', references: 'users(id)', onDelete: 'SET NULL' },
     deactivated_at: { type: 'TIMESTAMP' },
     deactivation_reason: { type: 'TEXT' },
-    created_at: { type: 'TIMESTAMP', default: 'CURRENT_TIMESTAMP' },
-    updated_at: { type: 'TIMESTAMP', default: 'CURRENT_TIMESTAMP' }
+    created_at: { type: 'TIMESTAMP', default: pgm.func('CURRENT_TIMESTAMP') },
+    updated_at: { type: 'TIMESTAMP', default: pgm.func('CURRENT_TIMESTAMP') }
   });
 
   // ==========================================
@@ -232,8 +241,8 @@ export async function up(pgm: MigrationBuilder): Promise<void> {
     cancel_reason: { type: 'TEXT' },
     cancelled_by: { type: 'INTEGER', references: 'users(id)', onDelete: 'SET NULL' },
     cancelled_at: { type: 'TIMESTAMP' },
-    created_at: { type: 'TIMESTAMP', default: 'CURRENT_TIMESTAMP' },
-    updated_at: { type: 'TIMESTAMP', default: 'CURRENT_TIMESTAMP' }
+    created_at: { type: 'TIMESTAMP', default: pgm.func('CURRENT_TIMESTAMP') },
+    updated_at: { type: 'TIMESTAMP', default: pgm.func('CURRENT_TIMESTAMP') }
   });
 
   // ==========================================
@@ -243,7 +252,7 @@ export async function up(pgm: MigrationBuilder): Promise<void> {
     id: { type: 'SERIAL', primaryKey: true },
     of_id: { type: 'INTEGER', notNull: true, references: 'ordres_fabrication(id)', onDelete: 'CASCADE' },
     operation_nom: { type: 'VARCHAR', notNull: true },
-    machine_id: { type: 'INTEGER', references: 'machines(id)', onDelete: 'SET NULL' },
+    machine_id: { type: 'INTEGER' },
     ordre: { type: 'INTEGER' },
     statut: { type: 'VARCHAR', default: 'PENDING' },
     duree_prevue: { type: 'INTEGER' },
@@ -294,8 +303,8 @@ export async function up(pgm: MigrationBuilder): Promise<void> {
     cancel_reason: { type: 'TEXT' },
     cancelled_by: { type: 'INTEGER', references: 'users(id)', onDelete: 'SET NULL' },
     cancelled_at: { type: 'TIMESTAMP' },
-    created_at: { type: 'TIMESTAMP', default: 'CURRENT_TIMESTAMP' },
-    updated_at: { type: 'TIMESTAMP', default: 'CURRENT_TIMESTAMP' }
+    created_at: { type: 'TIMESTAMP', default: pgm.func('CURRENT_TIMESTAMP') },
+    updated_at: { type: 'TIMESTAMP', default: pgm.func('CURRENT_TIMESTAMP') }
   });
 
   // ==========================================
@@ -315,8 +324,8 @@ export async function up(pgm: MigrationBuilder): Promise<void> {
     statut: { type: 'VARCHAR', default: 'PENDING' },
     valideur_id: { type: 'INTEGER', references: 'users(id)', onDelete: 'SET NULL' },
     notes: { type: 'TEXT' },
-    created_at: { type: 'TIMESTAMP', default: 'CURRENT_TIMESTAMP' },
-    updated_at: { type: 'TIMESTAMP', default: 'CURRENT_TIMESTAMP' }
+    created_at: { type: 'TIMESTAMP', default: pgm.func('CURRENT_TIMESTAMP') },
+    updated_at: { type: 'TIMESTAMP', default: pgm.func('CURRENT_TIMESTAMP') }
   });
 
   // ==========================================
@@ -331,8 +340,8 @@ export async function up(pgm: MigrationBuilder): Promise<void> {
     notes: { type: 'TEXT' },
     montant_ht: { type: 'DECIMAL(12,2)', default: 0 },
     montant_ttc: { type: 'DECIMAL(12,2)', default: 0 },
-    created_at: { type: 'TIMESTAMP', default: 'CURRENT_TIMESTAMP' },
-    updated_at: { type: 'TIMESTAMP', default: 'CURRENT_TIMESTAMP' }
+    created_at: { type: 'TIMESTAMP', default: pgm.func('CURRENT_TIMESTAMP') },
+    updated_at: { type: 'TIMESTAMP', default: pgm.func('CURRENT_TIMESTAMP') }
   });
 
   // ==========================================
@@ -363,8 +372,8 @@ export async function up(pgm: MigrationBuilder): Promise<void> {
     unite: { type: 'VARCHAR' },
     montant_total: { type: 'DECIMAL(12,2)' },
     fournisseur: { type: 'VARCHAR' },
-    created_at: { type: 'TIMESTAMP', default: 'CURRENT_TIMESTAMP' },
-    updated_at: { type: 'TIMESTAMP', default: 'CURRENT_TIMESTAMP' }
+    created_at: { type: 'TIMESTAMP', default: pgm.func('CURRENT_TIMESTAMP') },
+    updated_at: { type: 'TIMESTAMP', default: pgm.func('CURRENT_TIMESTAMP') }
   });
 
   // ==========================================
@@ -389,8 +398,8 @@ export async function up(pgm: MigrationBuilder): Promise<void> {
     date_facture: { type: 'DATE', notNull: true },
     montant_ht: { type: 'DECIMAL(12,2)', default: 0 },
     notes: { type: 'TEXT' },
-    created_at: { type: 'TIMESTAMP', default: 'CURRENT_TIMESTAMP' },
-    updated_at: { type: 'TIMESTAMP', default: 'CURRENT_TIMESTAMP' }
+    created_at: { type: 'TIMESTAMP', default: pgm.func('CURRENT_TIMESTAMP') },
+    updated_at: { type: 'TIMESTAMP', default: pgm.func('CURRENT_TIMESTAMP') }
   });
 
   // ==========================================
@@ -412,8 +421,8 @@ export async function up(pgm: MigrationBuilder): Promise<void> {
     deactivated_by: { type: 'INTEGER', references: 'users(id)', onDelete: 'SET NULL' },
     deactivated_at: { type: 'TIMESTAMP' },
     deactivation_reason: { type: 'TEXT' },
-    created_at: { type: 'TIMESTAMP', default: 'CURRENT_TIMESTAMP' },
-    updated_at: { type: 'TIMESTAMP', default: 'CURRENT_TIMESTAMP' }
+    created_at: { type: 'TIMESTAMP', default: pgm.func('CURRENT_TIMESTAMP') },
+    updated_at: { type: 'TIMESTAMP', default: pgm.func('CURRENT_TIMESTAMP') }
   });
 
   // ==========================================
@@ -436,8 +445,8 @@ export async function up(pgm: MigrationBuilder): Promise<void> {
     cout_reel: { type: 'DECIMAL(10,2)', default: 0 },
     description: { type: 'TEXT' },
     notes: { type: 'TEXT' },
-    created_at: { type: 'TIMESTAMP', default: 'CURRENT_TIMESTAMP' },
-    updated_at: { type: 'TIMESTAMP', default: 'CURRENT_TIMESTAMP' }
+    created_at: { type: 'TIMESTAMP', default: pgm.func('CURRENT_TIMESTAMP') },
+    updated_at: { type: 'TIMESTAMP', default: pgm.func('CURRENT_TIMESTAMP') }
   });
 
   // ==========================================
@@ -452,8 +461,8 @@ export async function up(pgm: MigrationBuilder): Promise<void> {
     date_fin: { type: 'TIMESTAMP', notNull: true },
     statut: { type: 'VARCHAR', default: 'PLANIFIE' },
     notes: { type: 'TEXT' },
-    created_at: { type: 'TIMESTAMP', default: 'CURRENT_TIMESTAMP' },
-    updated_at: { type: 'TIMESTAMP', default: 'CURRENT_TIMESTAMP' }
+    created_at: { type: 'TIMESTAMP', default: pgm.func('CURRENT_TIMESTAMP') },
+    updated_at: { type: 'TIMESTAMP', default: pgm.func('CURRENT_TIMESTAMP') }
   });
 
   // ==========================================
@@ -471,8 +480,8 @@ export async function up(pgm: MigrationBuilder): Promise<void> {
     quantite_conforme: { type: 'DECIMAL(10,2)', default: 0 },
     quantite_rebut: { type: 'DECIMAL(10,2)', default: 0 },
     notes: { type: 'TEXT' },
-    created_at: { type: 'TIMESTAMP', default: 'CURRENT_TIMESTAMP' },
-    updated_at: { type: 'TIMESTAMP', default: 'CURRENT_TIMESTAMP' }
+    created_at: { type: 'TIMESTAMP', default: pgm.func('CURRENT_TIMESTAMP') },
+    updated_at: { type: 'TIMESTAMP', default: pgm.func('CURRENT_TIMESTAMP') }
   });
 
   // ==========================================
@@ -490,8 +499,8 @@ export async function up(pgm: MigrationBuilder): Promise<void> {
     action_corrective: { type: 'TEXT' },
     responsable_id: { type: 'INTEGER', references: 'operateurs(id)', onDelete: 'SET NULL' },
     date_cloture: { type: 'DATE' },
-    created_at: { type: 'TIMESTAMP', default: 'CURRENT_TIMESTAMP' },
-    updated_at: { type: 'TIMESTAMP', default: 'CURRENT_TIMESTAMP' }
+    created_at: { type: 'TIMESTAMP', default: pgm.func('CURRENT_TIMESTAMP') },
+    updated_at: { type: 'TIMESTAMP', default: pgm.func('CURRENT_TIMESTAMP') }
   });
 
   // ==========================================
@@ -514,8 +523,8 @@ export async function up(pgm: MigrationBuilder): Promise<void> {
     deactivated_by: { type: 'INTEGER', references: 'users(id)', onDelete: 'SET NULL' },
     deactivated_at: { type: 'TIMESTAMP' },
     deactivation_reason: { type: 'TEXT' },
-    created_at: { type: 'TIMESTAMP', default: 'CURRENT_TIMESTAMP' },
-    updated_at: { type: 'TIMESTAMP', default: 'CURRENT_TIMESTAMP' }
+    created_at: { type: 'TIMESTAMP', default: pgm.func('CURRENT_TIMESTAMP') },
+    updated_at: { type: 'TIMESTAMP', default: pgm.func('CURRENT_TIMESTAMP') }
   });
 
   // ==========================================
@@ -542,8 +551,8 @@ export async function up(pgm: MigrationBuilder): Promise<void> {
     description: { type: 'TEXT' },
     ordre: { type: 'INTEGER', default: 0 },
     actif: { type: 'BOOLEAN', default: true },
-    created_at: { type: 'TIMESTAMP', default: 'CURRENT_TIMESTAMP' },
-    updated_at: { type: 'TIMESTAMP', default: 'CURRENT_TIMESTAMP' }
+    created_at: { type: 'TIMESTAMP', default: pgm.func('CURRENT_TIMESTAMP') },
+    updated_at: { type: 'TIMESTAMP', default: pgm.func('CURRENT_TIMESTAMP') }
   });
 
   // ==========================================
@@ -556,8 +565,8 @@ export async function up(pgm: MigrationBuilder): Promise<void> {
     valeur: { type: 'TEXT' },
     type: { type: 'VARCHAR', default: 'string' },
     description: { type: 'TEXT' },
-    created_at: { type: 'TIMESTAMP', default: 'CURRENT_TIMESTAMP' },
-    updated_at: { type: 'TIMESTAMP', default: 'CURRENT_TIMESTAMP' }
+    created_at: { type: 'TIMESTAMP', default: pgm.func('CURRENT_TIMESTAMP') },
+    updated_at: { type: 'TIMESTAMP', default: pgm.func('CURRENT_TIMESTAMP') }
   });
 
   // ==========================================
@@ -572,7 +581,7 @@ export async function up(pgm: MigrationBuilder): Promise<void> {
     stock_avant: { type: 'DECIMAL(10,2)', notNull: true },
     stock_apres: { type: 'DECIMAL(10,2)', notNull: true },
     motif: { type: 'TEXT' },
-    created_at: { type: 'TIMESTAMP', default: 'CURRENT_TIMESTAMP' }
+    created_at: { type: 'TIMESTAMP', default: pgm.func('CURRENT_TIMESTAMP') }
   });
 
   // ==========================================
@@ -580,7 +589,7 @@ export async function up(pgm: MigrationBuilder): Promise<void> {
   // ==========================================
   pgm.createTable('activity_log_v2', {
     id: { type: 'BIGSERIAL', primaryKey: true },
-    created_at: { type: 'TIMESTAMP', notNull: true, default: 'CURRENT_TIMESTAMP' },
+    created_at: { type: 'TIMESTAMP', notNull: true, default: pgm.func('CURRENT_TIMESTAMP') },
     user_id: { type: 'INTEGER' },
     user_nom: { type: 'VARCHAR(100)' },
     action: { type: 'VARCHAR(50)', notNull: true },
@@ -872,3 +881,4 @@ export async function up(pgm: MigrationBuilder): Promise<void> {
   pgm.sql(`COMMENT ON CONSTRAINT chk_user_role ON users IS 'User role must be one of: ADMIN, MANAGER, OPERATOR'`);
   pgm.sql(`COMMENT ON CONSTRAINT chk_operateur_role ON operateurs IS 'Operator role must be one of: OPERATEUR, CHEF_ATELIER, RESPONSABLE, TECHNICIEN'`);
 }
+

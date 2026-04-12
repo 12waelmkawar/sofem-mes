@@ -1,4 +1,4 @@
-import { MigrationBuilder } from 'node-pg-migrate';
+import type { MigrationBuilder } from 'node-pg-migrate';
 
 export async function down(pgm: MigrationBuilder): Promise<void> {
   // ==========================================
