@@ -41,6 +41,7 @@ export default function OrdersPage() {
   const [cancelOF, setCancelOF] = useState<OF | null>(null);
   const [dupOF, setDupOF] = useState<OF | null>(null);
   const [delOF, setDelOF] = useState<OF | null>(null);
+  const [opsOF, setOpsOF] = useState<OF | null>(null);
 
   const { data, isLoading } = useQuery<{ data: OF[] }>({
     queryKey: ['ofs'],
@@ -133,10 +134,10 @@ export default function OrdersPage() {
                       ))}
                     </div>
                     <button
-                      onClick={() => void 0}
-                      className="text-[10px] font-semibold text-[var(--accent)] hover:text-[var(--text)]"
+                      onClick={() => setOpsOF(of)}
+                      className="text-[10px] font-semibold text-[var(--accent)] hover:text-[var(--text)] border border-[var(--border)] rounded px-2 py-0.5 hover:border-[var(--accent)] transition-colors"
                     >
-                      OPS ({(of.operations || []).length})
+                      Ops ({(of.operations || []).length})
                     </button>
                   </div>
                 </td>
@@ -196,6 +197,7 @@ export default function OrdersPage() {
       {cancelOF && <CancelModal of={cancelOF} onClose={() => setCancelOF(null)} onConfirm={(r) => cancelMut.mutate({ id: cancelOF.id, reason: r })} />}
       {dupOF && <DupModal of={dupOF} onClose={() => setDupOF(null)} onDup={(d) => dupMut.mutate({ id: dupOF.id, data: d })} />}
       {delOF && <DeleteModal of={delOF} onClose={() => setDelOF(null)} onDelete={() => delMut.mutate(delOF.id)} />}
+      {opsOF && <OperationsModal of={opsOF} onClose={() => setOpsOF(null)} />}
     </div>
   );
 }
@@ -501,6 +503,127 @@ function EditModal({ of, onClose }: { of: OF; onClose: () => void }) {
           </div>
         </div>
       )}
+    </Modal>
+  );
+}
+
+// ─── Operations Modal ──────────────────────────────────────────────────
+
+function OperationsModal({ of, onClose }: { of: OF; onClose: () => void }) {
+  const qc = useQueryClient();
+  const { data: machines } = useQuery<any[]>({ queryKey: ['machines-ops'], queryFn: () => api.get('/api/machines').then(r => r.data) });
+  const { data: opTypes } = useQuery<any[]>({ queryKey: ['op-types-ops'], queryFn: () => api.get('/api/operation-types').then(r => r.data) });
+
+  const ops = of.operations || [];
+
+  const advanceOpMut = useMutation({
+    mutationFn: ({ opId, statut }: { opId: number; statut: string }) => api.put(`/api/of/${of.id}/operations/${opId}`, { statut }),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['ofs'] }); toast.success('Operation mise a jour'); },
+    onError: (e: any) => toast.error(e.response?.data?.error?.message || 'Erreur'),
+  });
+
+  const addOpMut = useMutation({
+    mutationFn: (d: any) => api.post(`/api/of/${of.id}/operations`, d),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['ofs'] }); toast.success('Operation ajoutee'); },
+    onError: () => toast.error('Erreur ajout operation'),
+  });
+
+  const delOpMut = useMutation({
+    mutationFn: (opId: number) => api.delete(`/api/of/${of.id}/operations/${opId}`),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['ofs'] }); toast.success('Operation supprimee'); },
+    onError: () => toast.error('Erreur suppression operation'),
+  });
+
+  const opStatusLabels: Record<string, string> = { PENDING: 'En attente', IN_PROGRESS: 'En cours', COMPLETED: 'Terminee' };
+
+  const [newType, setNewType] = useState('');
+  const [newMachine, setNewMachine] = useState('');
+
+  const handleAddOp = () => {
+    if (!newType) { toast.error('Type requis'); return; }
+    addOpMut.mutate({
+      operation_nom: newType,
+      machine_id: newMachine ? parseInt(newMachine) : null,
+      ordre: ops.length,
+    });
+    setNewType('');
+    setNewMachine('');
+  };
+
+  return (
+    <Modal open onClose={onClose} title={`Operations — ${of.numero}`} width="max-w-2xl">
+      <div className="space-y-4">
+        {/* Operations list */}
+        {ops.length === 0 ? (
+          <p className="text-[var(--muted)] text-sm text-center py-8">Aucune operation planifiee</p>
+        ) : (
+          <div className="space-y-2 max-h-80 overflow-y-auto">
+            {ops.map((op, i) => (
+              <div key={op.id || i} className="flex items-center gap-3 bg-[var(--bg)] border border-[var(--border)] rounded-lg p-3">
+                <div className="w-8 h-8 rounded-full bg-[var(--bg3)] flex items-center justify-center text-sm font-['Bebas_Neue'] text-[var(--muted)]">{i + 1}</div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium">{op.operation_nom}</p>
+                  <p className="text-[9px] text-[var(--muted)]">
+                    {op.machine_nom || 'Pas de machine'}
+                    {op.operateurs_noms ? ` | ${op.operateurs_noms}` : ''}
+                    {op.debut ? ` | Debut: ${new Date(op.debut).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}` : ''}
+                    {op.fin ? ` | Fin: ${new Date(op.fin).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}` : ''}
+                  </p>
+                </div>
+                <Badge label={opStatusLabels[op.statut] || op.statut}
+                  color={op.statut === 'COMPLETED' ? 'green' : op.statut === 'IN_PROGRESS' ? 'orange' : 'muted'} />
+                <div className="flex gap-1">
+                  {op.statut === 'PENDING' && (
+                    <button onClick={() => advanceOpMut.mutate({ opId: op.id, statut: 'IN_PROGRESS' })}
+                      className="px-2 py-1 rounded text-[10px] bg-[var(--accent)]/20 text-[var(--accent)] hover:bg-[var(--accent)]/30 transition-colors" title="Demarrer">
+                      ▶ Demarrer
+                    </button>
+                  )}
+                  {op.statut === 'IN_PROGRESS' && (
+                    <button onClick={() => advanceOpMut.mutate({ opId: op.id, statut: 'COMPLETED' })}
+                      className="px-2 py-1 rounded text-[10px] bg-[var(--green)]/20 text-[var(--green)] hover:bg-[var(--green)]/30 transition-colors" title="Terminer">
+                      ✓ Terminer
+                    </button>
+                  )}
+                  {op.statut !== 'COMPLETED' && op.statut !== 'IN_PROGRESS' && (
+                    <button onClick={() => { if (confirm('Supprimer cette operation?')) delOpMut.mutate(op.id); }}
+                      className="px-2 py-1 rounded text-[10px] text-red-400 hover:bg-red-500/10 transition-colors" title="Supprimer">
+                      ×
+                    </button>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Add operation */}
+        <div className="border-t border-[var(--border)] pt-3">
+          <p className="text-[9px] font-['IBM_Plex_Mono'] text-[var(--muted)] uppercase mb-2">Ajouter une operation</p>
+          <div className="flex gap-2 items-end">
+            <div className="flex-1">
+              <label className="text-[8px] font-['IBM_Plex_Mono'] text-[var(--muted)] uppercase">Type</label>
+              <select className="w-full bg-[var(--bg)] border border-[var(--border)] rounded px-2 py-1.5 text-xs" value={newType} onChange={e => setNewType(e.target.value)}>
+                <option value="">—</option>{opTypes?.map(t => <option key={t.id} value={t.nom}>{t.nom}</option>)}
+              </select>
+            </div>
+            <div className="w-44">
+              <label className="text-[8px] font-['IBM_Plex_Mono'] text-[var(--muted)] uppercase">Machine</label>
+              <select className="w-full bg-[var(--bg)] border border-[var(--border)] rounded px-2 py-1.5 text-xs" value={newMachine} onChange={e => setNewMachine(e.target.value)}>
+                <option value="">—</option>{machines?.filter(m => m.statut === 'OPERATIONNELLE').map(m => <option key={m.id} value={m.id}>{m.nom}</option>)}
+              </select>
+            </div>
+            <button type="button" onClick={handleAddOp} disabled={addOpMut.isPending}
+              className="px-3 py-1.5 rounded bg-[var(--red)] text-white text-[10px] hover:bg-[var(--red-d)] disabled:opacity-40">
+              + Ajouter
+            </button>
+          </div>
+        </div>
+
+        <div className="flex justify-end pt-2">
+          <Button variant="secondary" onClick={onClose}>Fermer</Button>
+        </div>
+      </div>
     </Modal>
   );
 }
