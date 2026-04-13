@@ -1,4 +1,4 @@
-﻿import { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '../../lib/api';
 import { toast } from '../../components/ui/Toast';
@@ -221,23 +221,13 @@ export default function OrdersPage() {
                     ) : <p className="text-[var(--muted)]">—</p>}
                   </td>
                   <td className="px-4 py-3">
-                    <div className="flex items-center gap-2">
-                      <div className="flex gap-0.5">
-                        {(of.operations || []).slice(0, 5).map(op => (
-                          <span key={op.id} className={`w-1.5 h-1.5 rounded-full ${
-                            op.statut === 'COMPLETED' ? 'bg-[var(--green)]' :
-                            op.statut === 'IN_PROGRESS' ? 'bg-[var(--accent)] animate-pulse' :
-                            'bg-[var(--muted)]/40'
-                          }`} title={`${op.operation_nom}: ${op.statut}`} />
-                        ))}
-                      </div>
-                      <button
-                        onClick={e => { e.stopPropagation(); setOpsOF(of); }}
-                        className="text-[9px] font-semibold text-[var(--accent)] hover:text-[var(--text)] border border-[var(--border)] rounded-md px-2 py-0.5 hover:border-[var(--accent)] hover:bg-[var(--accent)]/5 transition-all"
-                      >
-                        {(of.operations || []).length} ops
-                      </button>
-                    </div>
+                    <button
+                      onClick={e => { e.stopPropagation(); setOpsOF(of); }}
+                      className="flex items-center gap-2 text-xs font-['IBM_Plex_Sans'] font-medium px-3 py-1.5 rounded-lg border border-[var(--border)] text-[var(--text)] bg-[var(--bg)] hover:border-[var(--accent)] hover:text-[var(--accent)] transition-all shadow-sm"
+                    >
+                      <svg className="w-4 h-4 text-[var(--accent)]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+                      {(of.operations || []).length} Opérations
+                    </button>
                   </td>
                   {manager && (
                     <td className="px-4 py-3" onClick={e => e.stopPropagation()}>
@@ -413,8 +403,8 @@ function EditModal({ of, onClose }: { of: OF; onClose: () => void }) {
   const { data: machines } = useQuery<any[]>({ queryKey: ['machines'], queryFn: () => api.get('/api/machines').then(r => r.data) });
   const { data: opTypes } = useQuery<any[]>({ queryKey: ['op-types'], queryFn: () => api.get('/api/operation-types').then(r => r.data) });
 
-  const [tab, setTab] = useState<'details' | 'operations' | 'bom'>('details');
-  const [ops, setOps] = useState<any[]>(of.operations || []);
+  const [tab, setTab] = useState<'details' | 'bom'>('details');
+  const ops = of.operations || [];
   const [f, setF] = useState({
     produit_id: String(of.produit_id), quantite: of.quantite, priorite: of.priorite,
     client_id: String(of.client_id || ''), date_echeance: of.date_echeance ? new Date(of.date_echeance).toISOString().split('T')[0] : '',
@@ -455,7 +445,7 @@ function EditModal({ of, onClose }: { of: OF; onClose: () => void }) {
     <Modal open onClose={onClose} title={`Modifier ${of.numero}`} width="max-w-2xl">
       {/* Tabs */}
       <div className="flex gap-2 mb-4 border-b border-[var(--border)] pb-2">
-        {[{ key: 'details' as const, label: 'Details' }, { key: 'operations' as const, label: 'Operations' }, { key: 'bom' as const, label: 'Nomenclature' }].map(t => (
+        {[{ key: 'details' as const, label: 'Details' }, { key: 'bom' as const, label: 'Nomenclature' }].map(t => (
           <button key={t.key} onClick={() => setTab(t.key)}
             className={`px-3 py-1 rounded text-[10px] font-['IBM_Plex_Mono'] border ${tab === t.key ? 'bg-[var(--red)] text-white border-[var(--red)]' : 'border-[var(--border)] text-[var(--muted)]'}`}>
             {t.label}
@@ -509,66 +499,6 @@ function EditModal({ of, onClose }: { of: OF; onClose: () => void }) {
         </form>
       )}
 
-      {tab === 'operations' && (
-        <div className="space-y-3">
-          {/* Operations list */}
-          {ops.length === 0 ? (
-            <p className="text-[var(--muted)] text-sm text-center py-8">Aucune operation</p>
-          ) : (
-            <div className="space-y-2">
-              {ops.map((op, i) => (
-                <div key={i} className="flex items-center gap-3 bg-[var(--bg)] border border-[var(--border)] rounded-lg p-3">
-                  <div className="w-6 h-6 rounded-full bg-[var(--bg3)] flex items-center justify-center text-[10px] font-['IBM_Plex_Mono'] font-bold text-[var(--muted)]">{i + 1}</div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium">{op.operation_nom}</p>
-                    <p className="text-[9px] text-[var(--muted)]">{op.machine_nom || 'Pas de machine'} {op.operateurs_noms ? `| ${op.operateurs_noms}` : ''}</p>
-                  </div>
-                  <Badge label={opStatusLabels[op.statut] || op.statut}
-                    color={op.statut === 'COMPLETED' ? 'green' : op.statut === 'IN_PROGRESS' ? 'orange' : 'muted'} />
-                  <div className="flex gap-1">
-                    {op.statut === 'PENDING' && (
-                      <button onClick={() => advanceOpMut.mutate({ opId: op.id, statut: 'IN_PROGRESS' })}
-                        className="px-2 py-1 rounded text-[9px] bg-[var(--accent)]/20 text-[var(--accent)] hover:bg-[var(--accent)]/30" title="Demarrer">
-                        ▶
-                      </button>
-                    )}
-                    {op.statut === 'IN_PROGRESS' && (
-                      <button onClick={() => advanceOpMut.mutate({ opId: op.id, statut: 'COMPLETED' })}
-                        className="px-2 py-1 rounded text-[9px] bg-[var(--green)]/20 text-[var(--green)] hover:bg-[var(--green)]/30" title="Terminer">
-                        ✓
-                      </button>
-                    )}
-                    <button onClick={() => setOps(ops.filter((_, idx) => idx !== i))}
-                      className="px-2 py-1 rounded text-[9px] text-red-400 hover:bg-red-500/10" title="Supprimer">
-                      ×
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-
-          {/* Add operation */}
-          <div className="border-t border-[var(--border)] pt-3">
-            <p className="text-[9px] font-['IBM_Plex_Mono'] text-[var(--muted)] uppercase mb-2">Ajouter une operation</p>
-            <div className="flex gap-2 items-center">
-              <select id="new-op-type" className="flex-1 bg-[var(--bg)] border border-[var(--border)] rounded px-2 py-1.5 text-xs">
-                <option value="">Type...</option>{opTypes?.map(t => <option key={t.id} value={t.nom}>{t.nom}</option>)}
-              </select>
-              <select id="new-op-machine" className="w-40 bg-[var(--bg)] border border-[var(--border)] rounded px-2 py-1.5 text-xs">
-                <option value="">Machine...</option>{machines?.filter(m => m.statut === 'OPERATIONNELLE').map(m => <option key={m.id} value={m.id}>{m.nom}</option>)}
-              </select>
-              <button type="button" onClick={() => {
-                const typeEl = document.getElementById('new-op-type') as HTMLSelectElement;
-                const machEl = document.getElementById('new-op-machine') as HTMLSelectElement;
-                if (!typeEl?.value) { toast.error('Type requis'); return; }
-                setOps([...ops, { operation_nom: typeEl.value, machine_id: machEl?.value ? parseInt(machEl.value) : null, ordre: ops.length, statut: 'PENDING' }]);
-                typeEl.value = ''; machEl && (machEl.value = '');
-              }} className="px-3 py-1.5 rounded bg-[var(--red)] text-white text-[10px] hover:bg-[var(--red-d)]">+</button>
-            </div>
-          </div>
-        </div>
-      )}
 
       {tab === 'bom' && (
         <div>
