@@ -278,11 +278,11 @@ export default function OrdersPage() {
 
       {/* Modals */}
       {showCreate && <CreateModal onClose={() => setShowCreate(false)} />}
-      {editOF && <EditModal of={editOF} onClose={() => setEditOF(null)} />}
+      {editOF && <EditModal of={allOrders.find(o => o.id === editOF.id) || editOF} onClose={() => setEditOF(null)} />}
       {cancelOF && <CancelModal of={cancelOF} onClose={() => setCancelOF(null)} onConfirm={(r) => cancelMut.mutate({ id: cancelOF.id, reason: r })} />}
       {dupOF && <DupModal of={dupOF} onClose={() => setDupOF(null)} onDup={(d) => dupMut.mutate({ id: dupOF.id, data: d })} />}
       {delOF && <DeleteModal of={delOF} onClose={() => setDelOF(null)} onDelete={() => delMut.mutate(delOF.id)} />}
-      {opsOF && <OperationsModal of={opsOF} onClose={() => setOpsOF(null)} />}
+      {opsOF && <OperationsModal of={allOrders.find(o => o.id === opsOF.id) || opsOF} onClose={() => setOpsOF(null)} />}
     </div>
   );
 }
@@ -542,9 +542,14 @@ function OperationsModal({ of, onClose }: { of: OF; onClose: () => void }) {
   const [ops, setOps] = useState<any[]>(of.operations || []);
   const [_tick, setTick] = useState(0);
 
-  // Refresh elapsed time every 5 seconds for live display
+  // Keep local ops state in sync with fresh data from React Query
   useEffect(() => {
-    const interval = setInterval(() => setTick(t => t + 1), 5000);
+    setOps(of.operations || []);
+  }, [of.operations]);
+
+  // Refresh elapsed time every second (1000ms) for high-fidelity live display
+  useEffect(() => {
+    const interval = setInterval(() => setTick(t => t + 1), 1000);
     return () => clearInterval(interval);
   }, []);
 
