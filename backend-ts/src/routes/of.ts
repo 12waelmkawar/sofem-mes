@@ -573,27 +573,32 @@ router.put('/:of_id/operations/:op_id', requireAuth, async (req: AuthRequest, re
       const newStatus = parsed.data.statut;
       const currentDate = new Date();
 
-      // Validate ordering: can't start op N until 0..N-1 are COMPLETED
-      if (newStatus === 'IN_PROGRESS') {
-        const prevOps = await q(
-          "SELECT COUNT(*) as incomplete FROM of_operations WHERE of_id = $1 AND ordre < $2 AND statut != 'COMPLETED'",
-          [op.of_id, op.ordre]
-        );
-        if (parseInt(prevOps.rows[0].incomplete) > 0) {
-          throw new Error('Previous operations must be completed first');
-        }
-      }
-
-      // Build update
+      // Allow going back: COMPLETED -> IN_PROGRESS (re-open) resets fin, sets new debut
+      // Allow re-starting: IN_PROGRESS -> PENDING resets both timestamps
       let debut = op.debut;
       let fin = op.fin;
 
-      if (newStatus === 'IN_PROGRESS' && !debut) debut = currentDate;
+      if (newStatus === 'IN_PROGRESS') {
+        // If re-opening a completed operation or starting fresh
+        if (op.statut === 'COMPLETED') {
+          // Re-open: reset fin, set new debut
+          debut = currentDate;
+          fin = null;
+        } else if (!debut) {
+          debut = currentDate;
+        }
+        // If already IN_PROGRESS, keep existing debut
+      }
+
       if (newStatus === 'COMPLETED') {
         debut = debut || currentDate;
-        fin = currentDate;
+        fin = currentDate; // Always set fin to NOW for completion
       }
-      if (newStatus === 'PENDING') { debut = null; fin = null; }
+
+      if (newStatus === 'PENDING') {
+        debut = null;
+        fin = null;
+      }
 
       await q(
         'UPDATE of_operations SET statut = $1, debut = $2, fin = $3, notes = $4 WHERE id = $5',
@@ -621,6 +626,26 @@ router.put('/:of_id/operations/:op_id', requireAuth, async (req: AuthRequest, re
       return res.status(400).json(apiError('VALIDATION_ERROR', err.message));
     }
     res.status(500).json(apiError('INTERNAL_ERROR', 'Failed to update operation'));
+  }
+});
+
+// ─── PUT /api/of/:of_id/operations/reorder ──────────────────────────
+
+router.put('/:of_id/operations/reorder', requireAuth, requireRole('ADMIN', 'MANAGER'), async (req: AuthRequest, res: Response) => {
+  const { operations } = req.body;
+  if (!Array.isArray(operations)) {
+    return res.status(400).json(apiError('VALIDATION_ERROR', 'operations array required'));
+  }
+
+  try {
+    await transaction(async (q) => {
+      for (const op of operations) {
+        await q('UPDATE of_operations SET ordre = $1 WHERE id = $2 AND of_id = $3', [op.ordre, op.id, req.params.of_id]);
+      }
+    });
+    res.json({ message: 'Operations reordered', count: operations.length });
+  } catch (err) {
+    res.status(500).json(apiError('INTERNAL_ERROR', 'Failed to reorder operations'));
   }
 });
 

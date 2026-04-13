@@ -1,4 +1,4 @@
-﻿import { useState } from 'react';
+﻿import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '../../lib/api';
 import { toast } from '../../components/ui/Toast';
@@ -609,7 +609,14 @@ function OperationsModal({ of, onClose }: { of: OF; onClose: () => void }) {
   const { data: machines } = useQuery<any[]>({ queryKey: ['machines-ops'], queryFn: () => api.get('/api/machines').then(r => r.data) });
   const { data: opTypes } = useQuery<any[]>({ queryKey: ['op-types-ops'], queryFn: () => api.get('/api/operation-types').then(r => r.data) });
 
-  const ops = of.operations || [];
+  const [ops, setOps] = useState<any[]>(of.operations || []);
+  const [_tick, setTick] = useState(0);
+
+  // Refresh elapsed time every 5 seconds for live display
+  useEffect(() => {
+    const interval = setInterval(() => setTick(t => t + 1), 5000);
+    return () => clearInterval(interval);
+  }, []);
 
   const advanceOpMut = useMutation({
     mutationFn: ({ opId, statut }: { opId: number; statut: string }) => api.put(`/api/of/${of.id}/operations/${opId}`, { statut }),
@@ -629,10 +636,31 @@ function OperationsModal({ of, onClose }: { of: OF; onClose: () => void }) {
     onError: () => toast.error('Erreur suppression operation'),
   });
 
+  const reorderMut = useMutation({
+    mutationFn: (data: any) => api.put(`/api/of/${of.id}/operations/reorder`, data),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['ofs'] }); toast.success('Operations reordonnees'); },
+    onError: () => toast.error('Erreur reordonnancement'),
+  });
+
   const opStatusLabels: Record<string, string> = { PENDING: 'En attente', IN_PROGRESS: 'En cours', COMPLETED: 'Terminee' };
 
   const [newType, setNewType] = useState('');
   const [newMachine, setNewMachine] = useState('');
+
+  // Elapsed time calculator with seconds
+  function getElapsed(debut: string | null, fin: string | null): { hh: number; mm: number; ss: number; totalSeconds: number; text: string } {
+    if (!debut) return { hh: 0, mm: 0, ss: 0, totalSeconds: 0, text: '—' };
+    const start = new Date(debut).getTime();
+    const end = fin ? new Date(fin).getTime() : Date.now();
+    const totalSeconds = Math.max(0, Math.floor((end - start) / 1000));
+    const hh = Math.floor(totalSeconds / 3600);
+    const mm = Math.floor((totalSeconds % 3600) / 60);
+    const ss = totalSeconds % 60;
+    return {
+      hh, mm, ss, totalSeconds,
+      text: `${hh > 0 ? hh + 'h' : ''}${String(mm).padStart(2, '0')}m${String(ss).padStart(2, '0')}s`,
+    };
+  }
 
   const handleAddOp = () => {
     if (!newType) { toast.error('Type requis'); return; }
@@ -645,50 +673,120 @@ function OperationsModal({ of, onClose }: { of: OF; onClose: () => void }) {
     setNewMachine('');
   };
 
+  const handleReorder = (fromIdx: number, toIdx: number) => {
+    if (toIdx < 0 || toIdx >= ops.length) return;
+    const newOps = [...ops];
+    const [moved] = newOps.splice(fromIdx, 1);
+    newOps.splice(toIdx, 0, moved);
+    const reordered = newOps.map((op, i) => ({ id: op.id, ordre: i }));
+    setOps(newOps);
+    reorderMut.mutate({ operations: reordered });
+  };
+
+  // Total time calculation
+  const totalTime = ops.reduce((total, op) => total + getElapsed(op.debut, op.fin).totalSeconds, 0);
+  const totalHH = Math.floor(totalTime / 3600);
+  const totalMM = Math.floor((totalTime % 3600) / 60);
+
   return (
-    <Modal open onClose={onClose} title={`Operations — ${of.numero}`} width="max-w-2xl">
+    <Modal open onClose={onClose} title={`Operations — ${of.numero}`} width="max-w-3xl">
       <div className="space-y-4">
+        {/* Total time summary */}
+        <div className="bg-[var(--bg)] border border-[var(--border)] rounded-lg p-3 flex items-center justify-between">
+          <div className="text-[10px] font-['IBM_Plex_Mono'] text-[var(--muted)]">
+            <p>Temps total enregistre: <span className="text-[var(--text)] font-bold text-sm">{totalHH}h{String(totalMM).padStart(2, '0')}m</span></p>
+            <p>{ops.length} operation{ops.length > 1 ? 's' : ''} planifiees</p>
+          </div>
+          <div className="text-[10px] font-['IBM_Plex_Mono'] text-[var(--muted)] text-right">
+            <p>Ordre modifiable avec les fleches ↑↓</p>
+            <p>Operation terminee re-ouvrable avec ↺</p>
+          </div>
+        </div>
+
         {/* Operations list */}
         {ops.length === 0 ? (
           <p className="text-[var(--muted)] text-sm text-center py-8">Aucune operation planifiee</p>
         ) : (
           <div className="space-y-2 max-h-80 overflow-y-auto">
-            {ops.map((op, i) => (
-              <div key={op.id || i} className="flex items-center gap-3 bg-[var(--bg)] border border-[var(--border)] rounded-lg p-3">
-                <div className="w-8 h-8 rounded-full bg-[var(--bg3)] flex items-center justify-center text-sm font-['Bebas_Neue'] text-[var(--muted)]">{i + 1}</div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium">{op.operation_nom}</p>
-                  <p className="text-[9px] text-[var(--muted)]">
-                    {op.machine_nom || 'Pas de machine'}
-                    {op.operateurs_noms ? ` | ${op.operateurs_noms}` : ''}
-                    {op.debut ? ` | Debut: ${new Date(op.debut).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}` : ''}
-                    {op.fin ? ` | Fin: ${new Date(op.fin).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}` : ''}
-                  </p>
+            {ops.map((op, i) => {
+              const elapsed = getElapsed(op.debut, op.fin);
+              const isCompleted = op.statut === 'COMPLETED';
+              const isInProgress = op.statut === 'IN_PROGRESS';
+
+              return (
+                <div key={op.id || i} className={`flex items-center gap-3 border rounded-lg p-3 transition-colors ${
+                  isInProgress ? 'bg-[var(--accent)]/5 border-[var(--accent)]' : isCompleted ? 'bg-[var(--green)]/5 border-[var(--green)]/30' : 'bg-[var(--bg)] border-[var(--border)]'
+                }`}>
+                  {/* Sequence number + reorder buttons */}
+                  <div className="flex flex-col items-center gap-1">
+                    <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-['Bebas_Neue'] ${
+                      isCompleted ? 'bg-[var(--green)] text-white' : isInProgress ? 'bg-[var(--accent)] text-white animate-pulse' : 'bg-[var(--bg3)] text-[var(--muted)]'
+                    }`}>{i + 1}</div>
+                    <div className="flex gap-0.5">
+                      <button onClick={() => handleReorder(i, i - 1)} disabled={i === 0}
+                        className="w-4 h-4 flex items-center justify-center text-[8px] text-[var(--muted)] hover:text-[var(--text)] disabled:opacity-20" title="Monter">↑</button>
+                      <button onClick={() => handleReorder(i, i + 1)} disabled={i === ops.length - 1}
+                        className="w-4 h-4 flex items-center justify-center text-[8px] text-[var(--muted)] hover:text-[var(--text)] disabled:opacity-20" title="Descendre">↓</button>
+                    </div>
+                  </div>
+
+                  {/* Operation info */}
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium">{op.operation_nom}</p>
+                    <p className="text-[9px] text-[var(--muted)]">
+                      {op.machine_nom || 'Pas de machine'}
+                      {op.operateurs_noms ? ` | ${op.operateurs_noms}` : ''}
+                    </p>
+                    {op.debut && (
+                      <p className="text-[8px] text-[var(--muted)] mt-0.5">
+                        Debut: {new Date(op.debut).toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+                        {op.fin ? ` | Fin: ${new Date(op.fin).toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit' })}` : ` | En cours depuis ${elapsed.text}`}
+                      </p>
+                    )}
+                  </div>
+
+                  {/* Time display */}
+                  <div className="text-right min-w-[80px]">
+                    <p className={`text-sm font-['IBM_Plex_Mono'] font-bold ${isCompleted ? 'text-[var(--green)]' : isInProgress ? 'text-[var(--accent)]' : 'text-[var(--muted)]'}`}>
+                      {elapsed.text}
+                    </p>
+                    <p className="text-[7px] text-[var(--muted)]">{elapsed.totalSeconds}s total</p>
+                  </div>
+
+                  {/* Status badge */}
+                  <Badge label={opStatusLabels[op.statut] || op.statut}
+                    color={isCompleted ? 'green' : isInProgress ? 'orange' : 'muted'} />
+
+                  {/* Action buttons */}
+                  <div className="flex gap-1">
+                    {op.statut === 'PENDING' && (
+                      <button onClick={() => advanceOpMut.mutate({ opId: op.id, statut: 'IN_PROGRESS' })}
+                        className="px-2 py-1 rounded text-[10px] bg-[var(--accent)]/20 text-[var(--accent)] hover:bg-[var(--accent)]/30 transition-colors" title="Demarrer">
+                        ▶
+                      </button>
+                    )}
+                    {op.statut === 'IN_PROGRESS' && (
+                      <button onClick={() => advanceOpMut.mutate({ opId: op.id, statut: 'COMPLETED' })}
+                        className="px-2 py-1 rounded text-[10px] bg-[var(--green)]/20 text-[var(--green)] hover:bg-[var(--green)]/30 transition-colors" title="Terminer">
+                        ✓
+                      </button>
+                    )}
+                    {op.statut === 'COMPLETED' && (
+                      <button onClick={() => { if (confirm(`Re-ouvrir "${op.operation_nom}"? Le temps precedent sera perdu.`)) advanceOpMut.mutate({ opId: op.id, statut: 'IN_PROGRESS' }); }}
+                        className="px-2 py-1 rounded text-[10px] bg-[var(--blue)]/20 text-[var(--blue)] hover:bg-[var(--blue)]/30 transition-colors" title="Re-ouvrir">
+                        ↺
+                      </button>
+                    )}
+                    {!isCompleted && !isInProgress && (
+                      <button onClick={() => { if (confirm('Supprimer cette operation?')) delOpMut.mutate(op.id); }}
+                        className="px-2 py-1 rounded text-[10px] text-red-400 hover:bg-red-500/10 transition-colors" title="Supprimer">
+                        ×
+                      </button>
+                    )}
+                  </div>
                 </div>
-                <Badge label={opStatusLabels[op.statut] || op.statut}
-                  color={op.statut === 'COMPLETED' ? 'green' : op.statut === 'IN_PROGRESS' ? 'orange' : 'muted'} />
-                <div className="flex gap-1">
-                  {op.statut === 'PENDING' && (
-                    <button onClick={() => advanceOpMut.mutate({ opId: op.id, statut: 'IN_PROGRESS' })}
-                      className="px-2 py-1 rounded text-[10px] bg-[var(--accent)]/20 text-[var(--accent)] hover:bg-[var(--accent)]/30 transition-colors" title="Demarrer">
-                      ▶ Demarrer
-                    </button>
-                  )}
-                  {op.statut === 'IN_PROGRESS' && (
-                    <button onClick={() => advanceOpMut.mutate({ opId: op.id, statut: 'COMPLETED' })}
-                      className="px-2 py-1 rounded text-[10px] bg-[var(--green)]/20 text-[var(--green)] hover:bg-[var(--green)]/30 transition-colors" title="Terminer">
-                      ✓ Terminer
-                    </button>
-                  )}
-                  {op.statut !== 'COMPLETED' && op.statut !== 'IN_PROGRESS' && (
-                    <button onClick={() => { if (confirm('Supprimer cette operation?')) delOpMut.mutate(op.id); }}
-                      className="px-2 py-1 rounded text-[10px] text-red-400 hover:bg-red-500/10 transition-colors" title="Supprimer">
-                      ×
-                    </button>
-                  )}
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
 
