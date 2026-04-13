@@ -118,7 +118,7 @@ app.use((_req: Request, res: Response) => {
 
 // ─── Start Server ───────────────────────────────────────────────
 
-if (process.env.NODE_ENV !== 'test') {
+if (process.env.NODE_ENV !== 'test' && !process.env.VERCEL) {
   app.listen(PORT, () => {
     console.log(`🚀 SOFEM MES Backend running on http://localhost:${PORT}`);
     console.log(`📊 Environment: ${process.env.NODE_ENV || 'development'}`);
