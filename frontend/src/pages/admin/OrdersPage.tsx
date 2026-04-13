@@ -20,13 +20,20 @@ interface OF {
   bom: any[];
 }
 
+// ─── Constants ─────────────────────────────────────────────────────────
+
 const STATUT_LABELS: Record<string, string> = {
   DRAFT: 'Brouillon', APPROVED: 'Approuve', IN_PROGRESS: 'En cours', COMPLETED: 'Termine', CANCELLED: 'Annule',
 };
 const STATUT_COLORS: Record<string, 'red' | 'green' | 'blue' | 'muted'> = {
   DRAFT: 'muted', APPROVED: 'blue', IN_PROGRESS: 'red', COMPLETED: 'green', CANCELLED: 'red',
 };
+const STATUT_ICONS: Record<string, string> = {
+  DRAFT: '📝', APPROVED: '✅', IN_PROGRESS: '⚙️', COMPLETED: '🏁', CANCELLED: '❌',
+};
+const PRIORITE_LABELS: Record<string, string> = { URGENT: 'Urgent', HIGH: 'Haute', NORMAL: 'Normal', LOW: 'Basse' };
 const PRIORITE_COLORS: Record<string, 'red' | 'orange' | 'blue' | 'muted'> = { URGENT: 'red', HIGH: 'orange', NORMAL: 'blue', LOW: 'muted' };
+const PRIORITE_ICONS: Record<string, string> = { URGENT: '🔴', HIGH: '🟠', NORMAL: '🔵', LOW: '⚪' };
 
 // ─── Main Component ────────────────────────────────────────────────────
 
@@ -76,119 +83,207 @@ export default function OrdersPage() {
     return true;
   });
 
+  // Status summary
+  const statusCounts: Record<string, number> = { ALL: allOrders.length, DRAFT: 0, APPROVED: 0, IN_PROGRESS: 0, COMPLETED: 0, CANCELLED: 0 };
+  allOrders.forEach(of => { statusCounts[of.statut] = (statusCounts[of.statut] || 0) + 1; });
+
   return (
-    <div>
-      <div className="flex items-center justify-between mb-4">
+    <div className="space-y-4">
+      {/* Header with stats */}
+      <div className="flex items-center justify-between gap-3">
         <div>
-          <h1 className="font-['Bebas_Neue'] text-[28px] tracking-[0.15em]">ORDRES DE FABRICATION</h1>
-          <p className="text-[10px] font-['IBM_Plex_Mono'] text-[var(--muted)]">{filtered.length} ordres</p>
+          <h1 className="font-['Bebas_Neue'] text-[30px] tracking-[0.15em] text-[var(--text)]">ORDRES DE FABRICATION</h1>
+          <p className="text-[10px] font-['IBM_Plex_Mono'] text-[var(--muted)]">
+            {filtered.length} ordre{filtered.length > 1 ? 's' : ''} affiché{filtered.length > 1 ? 's' : ''}
+            {filterStatut && ` • ${STATUT_LABELS[filterStatut]}`}
+          </p>
         </div>
-        <div className="flex gap-2">
-          <input className="bg-[var(--bg)] border border-[var(--border)] rounded px-3 py-1.5 text-xs w-48" placeholder="Rechercher..." value={search} onChange={e => setSearch(e.target.value)} />
-          {manager && <Button onClick={() => setShowCreate(true)}>+ Nouvel OF</Button>}
+        <div className="flex items-center gap-2">
+          {manager && (
+            <Button onClick={() => setShowCreate(true)} className="inline-flex items-center gap-2">
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6m0 0v6m0-6h6m-6 0H6" /></svg>
+              Nouvel OF
+            </Button>
+          )}
         </div>
       </div>
 
-      {/* Filter bar */}
-      <div className="flex gap-2 mb-3 flex-wrap">
-        {['', 'IN_PROGRESS', 'DRAFT', 'APPROVED', 'COMPLETED', 'CANCELLED'].map(s => (
-          <button key={s} onClick={() => setFilterStatut(s)}
-            className={`px-3 py-1 rounded text-[10px] font-['IBM_Plex_Mono'] border ${filterStatut === s ? 'bg-[var(--red)] text-white border-[var(--red)]' : 'border-[var(--border)] text-[var(--muted)]'}`}>
-            {s ? STATUT_LABELS[s] : 'Tous'}
+      {/* Status pills */}
+      <div className="flex gap-2 flex-wrap">
+        {[
+          { key: '', label: 'Tous', count: statusCounts.ALL },
+          { key: 'IN_PROGRESS', label: 'En cours', count: statusCounts.IN_PROGRESS, color: 'red' as const },
+          { key: 'DRAFT', label: 'Brouillon', count: statusCounts.DRAFT, color: 'muted' as const },
+          { key: 'APPROVED', label: 'Approuve', count: statusCounts.APPROVED, color: 'blue' as const },
+          { key: 'COMPLETED', label: 'Termine', count: statusCounts.COMPLETED, color: 'green' as const },
+          { key: 'CANCELLED', label: 'Annule', count: statusCounts.CANCELLED, color: 'red' as const },
+        ].map(s => {
+          const active = filterStatut === s.key;
+          const c = s.color || 'muted';
+          return (
+            <button key={s.key} onClick={() => setFilterStatut(s.key)}
+              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-['IBM_Plex_Mono'] border transition-all duration-150 ${
+                active
+                  ? `bg-[var(--${c})] text-white border-[var(--${c})] shadow-lg shadow-[var(--${c}-g,#dc262620)]`
+                  : 'border-[var(--border)] text-[var(--muted)] hover:text-[var(--text)] hover:border-[var(--muted)] bg-[var(--bg2)]'
+              }`}>
+              {STATUT_ICONS[s.key as keyof typeof STATUT_ICONS] || ''}
+              <span>{s.label}</span>
+              <span className={`ml-1 px-1.5 py-0.5 rounded text-[8px] font-bold ${active ? 'bg-white/20' : 'bg-[var(--bg3)]'}`}>
+                {s.count}
+              </span>
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Search bar */}
+      <div className="relative">
+        <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--muted)]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <circle cx="11" cy="11" r="8" /><path d="M21 21l-4.35-4.35" strokeLinecap="round" />
+        </svg>
+        <input
+          className="w-full bg-[var(--bg2)] border border-[var(--border)] rounded-lg pl-10 pr-8 py-2.5 text-xs text-[var(--text)] placeholder:text-[var(--muted)] focus:border-[var(--red)] focus:ring-1 focus:ring-[var(--red-g)] transition-all outline-none"
+          placeholder="Rechercher par numero, produit, client..."
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+        />
+        {search && (
+          <button onClick={() => setSearch('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--muted)] hover:text-[var(--text)] transition-colors" title="Effacer">
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
           </button>
-        ))}
+        )}
       </div>
 
       {/* Table */}
-      <div className="overflow-x-auto rounded-lg border border-[var(--border)]">
-        <table className="w-full text-[11px] font-['IBM_Plex_Mono']">
-          <thead className="bg-[var(--bg3)] text-[var(--muted)] text-[8px] uppercase tracking-[0.1em]">
-            <tr>
-              <th className="text-left px-3 py-2">N OF</th>
-              <th className="text-left px-3 py-2">Produit</th>
-              <th className="text-left px-3 py-2">Client</th>
-              <th className="text-right px-3 py-2">Qte</th>
-              <th className="text-left px-3 py-2">Priorite</th>
-              <th className="text-left px-3 py-2">Statut</th>
-              <th className="text-left px-3 py-2">Echeance</th>
-              <th className="text-left px-3 py-2">Ops</th>
-              {manager && <th className="text-right px-3 py-2">Actions</th>}
-            </tr>
-          </thead>
-          <tbody>
-            {isLoading && <tr><td colSpan={9} className="px-3 py-8 text-center text-[var(--muted)]">Chargement...</td></tr>}
-            {filtered.map(of => (
-              <tr key={of.id} className="border-t border-[var(--border)] hover:bg-[var(--bg3)]">
-                <td className="px-3 py-2 font-bold">{of.numero}</td>
-                <td className="px-3 py-2">{of.produit_nom}</td>
-                <td className="px-3 py-2 text-[var(--muted)]">{of.client_nom || '—'}</td>
-                <td className="px-3 py-2 text-right">{of.quantite}</td>
-                <td className="px-3 py-2"><Badge label={of.priorite} color={PRIORITE_COLORS[of.priorite]} /></td>
-                <td className="px-3 py-2"><Badge label={STATUT_LABELS[of.statut]} color={STATUT_COLORS[of.statut]} /></td>
-                <td className="px-3 py-2 text-[var(--muted)]">{of.date_echeance ? new Date(of.date_echeance).toLocaleDateString('fr-FR') : '—'}</td>
-                <td className="px-3 py-2">
-                  <div className="flex items-center gap-2">
-                    <div className="flex gap-1">
-                      {(of.operations || []).slice(0, 3).map(op => (
-                        <span key={op.id} className={`w-2 h-2 rounded-full ${op.statut === 'COMPLETED' ? 'bg-[var(--green)]' : op.statut === 'IN_PROGRESS' ? 'bg-[var(--accent)] animate-pulse' : 'bg-[var(--muted)] opacity-40'}`} title={op.operation_nom} />
-                      ))}
-                    </div>
-                    <button
-                      onClick={() => setOpsOF(of)}
-                      className="text-[10px] font-semibold text-[var(--accent)] hover:text-[var(--text)] border border-[var(--border)] rounded px-2 py-0.5 hover:border-[var(--accent)] transition-colors"
-                    >
-                      Ops ({(of.operations || []).length})
-                    </button>
+      <div className="rounded-xl border border-[var(--border)] overflow-hidden bg-[var(--bg2)]">
+        <div className="overflow-x-auto">
+          <table className="w-full text-[11px] font-['IBM_Plex_Mono']">
+            <thead className="bg-[var(--bg3)] text-[var(--muted)] text-[8px] uppercase tracking-[0.12em]">
+              <tr>
+                <th className="text-left px-4 py-3">N OF</th>
+                <th className="text-left px-4 py-3">Produit</th>
+                <th className="text-left px-4 py-3 hidden lg:table-cell">Client</th>
+                <th className="text-right px-4 py-3 hidden md:table-cell">Qte</th>
+                <th className="text-left px-4 py-3 hidden md:table-cell">Priorite</th>
+                <th className="text-left px-4 py-3">Statut</th>
+                <th className="text-left px-4 py-3 hidden sm:table-cell">Echeance</th>
+                <th className="text-left px-4 py-3">Operations</th>
+                {manager && <th className="text-right px-4 py-3">Actions</th>}
+              </tr>
+            </thead>
+            <tbody>
+              {isLoading && (
+                <tr><td colSpan={9} className="px-4 py-12 text-center">
+                  <div className="flex flex-col items-center gap-3">
+                    <div className="w-8 h-8 border-2 border-[var(--red)] border-t-transparent rounded-full animate-spin" />
+                    <p className="text-[var(--muted)] text-[10px]">Chargement des ordres...</p>
                   </div>
-                </td>
-                {manager && (
-                  <td className="px-3 py-2">
-                    <div className="flex items-center justify-end gap-1.5">
-                      <button
-                        onClick={() => setEditOF(of)}
-                        className="inline-flex items-center gap-1 px-2 py-1 rounded-md border border-[var(--border)] bg-[var(--bg)] text-[10px] text-[var(--blue)] hover:border-[var(--blue)] hover:bg-[var(--blue)]/10 transition-colors"
-                        title="Modifier"
-                      >
-                        <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
-                        Edit
-                      </button>
-
-                      <button
-                        onClick={() => setDupOF(of)}
-                        className="inline-flex items-center gap-1 px-2 py-1 rounded-md border border-[var(--border)] bg-[var(--bg)] text-[10px] text-[var(--accent)] hover:border-[var(--accent)] hover:bg-[var(--accent)]/10 transition-colors"
-                        title="Dupliquer"
-                      >
-                        <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg>
-                        Dup
-                      </button>
-
-                      {of.statut !== 'CANCELLED' && of.statut !== 'COMPLETED' && (
-                        <>
-                          <button
-                            onClick={() => setCancelOF(of)}
-                            className="inline-flex items-center gap-1 px-2 py-1 rounded-md border border-[var(--border)] bg-[var(--bg)] text-[10px] text-orange-400 hover:border-orange-500 hover:bg-orange-500/10 transition-colors"
-                            title="Annuler"
-                          >
-                            <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" /></svg>
-                            Ann
-                          </button>
-                          <button
-                            onClick={() => setDelOF(of)}
-                            className="inline-flex items-center gap-1 px-2 py-1 rounded-md border border-[var(--border)] bg-[var(--bg)] text-[10px] text-red-400 hover:border-red-500 hover:bg-red-500/10 transition-colors"
-                            title="Supprimer"
-                          >
-                            <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
-                          </button>
-                        </>
-                      )}
+                </td></tr>
+              )}
+              {!isLoading && filtered.map(of => (
+                <tr key={of.id} className="border-t border-[var(--border)] hover:bg-[var(--bg3)]/50 transition-colors group cursor-pointer"
+                  onClick={() => setEditOF(of)}>
+                  <td className="px-4 py-3">
+                    <span className="font-bold text-[var(--text)] group-hover:text-[var(--red)] transition-colors">{of.numero}</span>
+                  </td>
+                  <td className="px-4 py-3">
+                    <p className="font-medium text-[var(--text)] truncate max-w-[180px]" title={of.produit_nom}>{of.produit_nom}</p>
+                    <p className="text-[8px] text-[var(--muted)]">{of.produit_code}</p>
+                  </td>
+                  <td className="px-4 py-3 hidden lg:table-cell">
+                    <p className="text-[var(--muted)] truncate max-w-[140px]" title={of.client_nom || ''}>{of.client_nom || '—'}</p>
+                  </td>
+                  <td className="px-4 py-3 text-right font-['Bebas_Neue'] text-lg text-[var(--text)] hidden md:table-cell">{of.quantite}</td>
+                  <td className="px-4 py-3 hidden md:table-cell">
+                    <span className="inline-flex items-center gap-1">
+                      <span>{PRIORITE_ICONS[of.priorite]}</span>
+                      <Badge label={PRIORITE_LABELS[of.priorite] || of.priorite} color={PRIORITE_COLORS[of.priorite]} />
+                    </span>
+                  </td>
+                  <td className="px-4 py-3">
+                    <div className="inline-flex items-center gap-1.5">
+                      <span>{STATUT_ICONS[of.statut as keyof typeof STATUT_ICONS]}</span>
+                      <Badge label={STATUT_LABELS[of.statut]} color={STATUT_COLORS[of.statut]} />
                     </div>
                   </td>
-                )}
-              </tr>
-            ))}
-            {!isLoading && filtered.length === 0 && <tr><td colSpan={9} className="px-3 py-8 text-center text-[var(--muted)]">Aucun ordre</td></tr>}
-          </tbody>
-        </table>
+                  <td className="px-4 py-3 hidden sm:table-cell">
+                    {of.date_echeance ? (
+                      <div>
+                        <p className="text-[var(--muted)]">{new Date(of.date_echeance).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' })}</p>
+                        {(() => {
+                          const diff = Math.ceil((new Date(of.date_echeance).getTime() - Date.now()) / 86400000);
+                          if (diff < 0) return <p className="text-[8px] text-[var(--red)] font-bold">Retard {Math.abs(diff)}j</p>;
+                          if (diff <= 3) return <p className="text-[8px] text-[var(--accent)]">{diff}j restants</p>;
+                          return null;
+                        })()}
+                      </div>
+                    ) : <p className="text-[var(--muted)]">—</p>}
+                  </td>
+                  <td className="px-4 py-3">
+                    <div className="flex items-center gap-2">
+                      <div className="flex gap-0.5">
+                        {(of.operations || []).slice(0, 5).map(op => (
+                          <span key={op.id} className={`w-1.5 h-1.5 rounded-full ${
+                            op.statut === 'COMPLETED' ? 'bg-[var(--green)]' :
+                            op.statut === 'IN_PROGRESS' ? 'bg-[var(--accent)] animate-pulse' :
+                            'bg-[var(--muted)]/40'
+                          }`} title={`${op.operation_nom}: ${op.statut}`} />
+                        ))}
+                      </div>
+                      <button
+                        onClick={e => { e.stopPropagation(); setOpsOF(of); }}
+                        className="text-[9px] font-semibold text-[var(--accent)] hover:text-[var(--text)] border border-[var(--border)] rounded-md px-2 py-0.5 hover:border-[var(--accent)] hover:bg-[var(--accent)]/5 transition-all"
+                      >
+                        {(of.operations || []).length} ops
+                      </button>
+                    </div>
+                  </td>
+                  {manager && (
+                    <td className="px-4 py-3" onClick={e => e.stopPropagation()}>
+                      <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <button onClick={() => setEditOF(of)} title="Modifier"
+                          className="p-1.5 rounded-lg border border-[var(--border)] bg-[var(--bg)] text-[var(--blue)] hover:border-[var(--blue)] hover:bg-[var(--blue)]/10 transition-colors">
+                          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
+                        </button>
+                        <button onClick={() => setDupOF(of)} title="Dupliquer"
+                          className="p-1.5 rounded-lg border border-[var(--border)] bg-[var(--bg)] text-[var(--accent)] hover:border-[var(--accent)] hover:bg-[var(--accent)]/10 transition-colors">
+                          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg>
+                        </button>
+                        {of.statut !== 'CANCELLED' && of.statut !== 'COMPLETED' && (
+                          <>
+                            <button onClick={() => setCancelOF(of)} title="Annuler"
+                              className="p-1.5 rounded-lg border border-[var(--border)] bg-[var(--bg)] text-orange-400 hover:border-orange-500 hover:bg-orange-500/10 transition-colors">
+                              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" /></svg>
+                            </button>
+                            <button onClick={() => setDelOF(of)} title="Supprimer"
+                              className="p-1.5 rounded-lg border border-[var(--border)] bg-[var(--bg)] text-red-400 hover:border-red-500 hover:bg-red-500/10 transition-colors">
+                              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                            </button>
+                          </>
+                        )}
+                      </div>
+                    </td>
+                  )}
+                </tr>
+              ))}
+              {!isLoading && filtered.length === 0 && (
+                <tr><td colSpan={manager ? 9 : 8} className="px-4 py-16 text-center">
+                  <div className="flex flex-col items-center gap-3">
+                    <div className="text-4xl opacity-30">📋</div>
+                    <p className="text-[var(--muted)] text-sm font-['IBM_Plex_Mono']">Aucun ordre trouvé</p>
+                    <p className="text-[var(--muted)] text-[10px]">
+                      {search ? `Aucun résultat pour "${search}"` : filterStatut ? `Aucun ordre en statut ${STATUT_LABELS[filterStatut]}` : 'Creez votre premier ordre de fabrication'}
+                    </p>
+                    {manager && !search && !filterStatut && (
+                      <Button onClick={() => setShowCreate(true)} className="mt-2">+ Nouvel OF</Button>
+                    )}
+                  </div>
+                </td></tr>
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
 
       {/* Modals */}
