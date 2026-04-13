@@ -400,8 +400,7 @@ function EditModal({ of, onClose }: { of: OF; onClose: () => void }) {
   const qc = useQueryClient();
   const { data: produits } = useQuery<{ data: any[] }>({ queryKey: ['produits'], queryFn: () => api.get('/api/produits?limit=500').then(r => r.data) });
   const { data: clients } = useQuery<{ data: any[] }>({ queryKey: ['clients'], queryFn: () => api.get('/api/clients?limit=500').then(r => r.data) });
-  const { data: machines } = useQuery<any[]>({ queryKey: ['machines'], queryFn: () => api.get('/api/machines').then(r => r.data) });
-  const { data: opTypes } = useQuery<any[]>({ queryKey: ['op-types'], queryFn: () => api.get('/api/operation-types').then(r => r.data) });
+
 
   const [tab, setTab] = useState<'details' | 'bom'>('details');
   const ops = of.operations || [];
@@ -417,11 +416,7 @@ function EditModal({ of, onClose }: { of: OF; onClose: () => void }) {
     onError: () => toast.error('Erreur modification'),
   });
 
-  const advanceOpMut = useMutation({
-    mutationFn: ({ opId, statut }: { opId: number; statut: string }) => api.put(`/api/of/${of.id}/operations/${opId}`, { statut }),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['ofs'] }); toast.success('Operation mise a jour'); },
-    onError: (e: any) => toast.error(e.response?.data?.error?.message || 'Erreur'),
-  });
+
 
   const handleSave = (e: React.FormEvent) => {
     e.preventDefault();
@@ -431,7 +426,7 @@ function EditModal({ of, onClose }: { of: OF; onClose: () => void }) {
         produit_id: parseInt(f.produit_id), quantite: parseInt(String(f.quantite)), priorite: f.priorite,
         client_id: f.client_id ? parseInt(f.client_id) : null, atelier: of.atelier,
         date_echeance: f.date_echeance, notes: f.notes || null,
-        operations: ops.map((op, i) => ({ operation_nom: op.operation_nom, machine_id: op.machine_id || null, ordre: i })),
+        operations: ops.map((op: any, i) => ({ operation_nom: op.operation_nom, machine_id: op.machine_id || null, ordre: i })),
         bom_overrides: [],
       },
     });
@@ -439,7 +434,7 @@ function EditModal({ of, onClose }: { of: OF; onClose: () => void }) {
 
   const selProduit = produits?.data?.find(p => p.id === parseInt(f.produit_id));
 
-  const opStatusLabels: Record<string, string> = { PENDING: 'En attente', IN_PROGRESS: 'En cours', COMPLETED: 'Terminee' };
+
 
   return (
     <Modal open onClose={onClose} title={`Modifier ${of.numero}`} width="max-w-2xl">
