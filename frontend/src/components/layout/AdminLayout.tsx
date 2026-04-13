@@ -22,12 +22,33 @@ const NAV_GROUPS: NavGroup[] = [
     { label: 'Clients', page: 'clients', icon: '◉' },
     { label: 'Operateurs', page: 'operators', icon: '◧' },
   ]},
-  { title: 'Equipements', items: [
-    { label: 'Machines', page: 'machines', icon: '⚙' },
+  { title: 'Achats', items: [
+    { label: 'DA', page: 'da', icon: '📋' },
+    { label: 'BC', page: 'bc', icon: '📦' },
+    { label: 'BR', page: 'br', icon: '📥' },
+    { label: 'FA', page: 'fa', icon: '🧾' },
   ]},
   { title: 'Qualite', items: [
     { label: 'Controles', page: 'qualite', icon: '✓' },
     { label: 'Non-Conformites', page: 'nc', icon: '✗' },
+  ]},
+  { title: 'Equipements', items: [
+    { label: 'Machines', page: 'machines', icon: '⚙' },
+    { label: 'Maintenance', page: 'maintenance', icon: '🔧' },
+    { label: 'Planning', page: 'planning', icon: '📅' },
+  ]},
+  { title: 'Fournisseurs', items: [
+    { label: 'Fournisseurs', page: 'fournisseurs', icon: '🚚' },
+  ]},
+  { title: 'Analytique', items: [
+    { label: 'Production', page: 'analytics-production', icon: '📊' },
+    { label: 'Achats', page: 'analytics-achats', icon: '📦' },
+    { label: 'Operateurs', page: 'analytics-operateurs', icon: '👷' },
+    { label: 'Qualite', page: 'analytics-qualite', icon: '✓' },
+  ]},
+  { title: 'Data', items: [
+    { label: 'Rapports', page: 'reports', icon: '📈' },
+    { label: 'Activite', page: 'activity', icon: '📝' },
   ]},
   { title: 'Admin', items: [
     { label: 'Parametres', page: 'settings', icon: '⚙' },

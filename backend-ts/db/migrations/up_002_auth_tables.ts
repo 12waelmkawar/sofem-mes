@@ -15,9 +15,9 @@ async function run() {
       revoked_at TIMESTAMP
     );
 
-    CREATE INDEX idx_sessions_user_id ON sessions(user_id);
-    CREATE INDEX idx_sessions_token ON sessions(session_token);
-    CREATE INDEX idx_sessions_revoked ON sessions(revoked_at) WHERE revoked_at IS NULL;
+    CREATE INDEX IF NOT EXISTS idx_sessions_user_id ON sessions(user_id);
+    CREATE INDEX IF NOT EXISTS idx_sessions_token ON sessions(session_token);
+    CREATE INDEX IF NOT EXISTS idx_sessions_revoked ON sessions(revoked_at) WHERE revoked_at IS NULL;
   `);
 
   await query(`
@@ -30,8 +30,8 @@ async function run() {
       resolved_user_id INT REFERENCES users(id)
     );
 
-    CREATE INDEX idx_failed_logins_ip ON failed_logins(ip_address);
-    CREATE INDEX idx_failed_logins_created ON failed_logins(created_at);
+    CREATE INDEX IF NOT EXISTS idx_failed_logins_ip ON failed_logins(ip_address);
+    CREATE INDEX IF NOT EXISTS idx_failed_logins_created ON failed_logins(created_at);
   `);
 
   await query(`

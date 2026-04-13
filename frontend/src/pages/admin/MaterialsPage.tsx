@@ -20,6 +20,11 @@ interface Mouvement {
   of_numero: string | null; created_at: string;
 }
 
+const toNumber = (value: unknown): number => {
+  const parsed = typeof value === 'number' ? value : Number(value);
+  return Number.isFinite(parsed) ? parsed : 0;
+};
+
 export default function MaterialsPage() {
   const { isManager } = useAuth();
   const queryClient = useQueryClient();
@@ -29,7 +34,16 @@ export default function MaterialsPage() {
 
   const { data } = useQuery({
     queryKey: ['materiaux'],
-    queryFn: () => api.get<{ data: Materiau[] }>('/api/materiaux?limit=500').then(r => r.data.data),
+    queryFn: async () => {
+      const rows = await api.get<{ data: Materiau[] }>('/api/materiaux?limit=500').then(r => r.data.data || []);
+      return rows.map((m) => ({
+        ...m,
+        stock_actuel: toNumber(m.stock_actuel),
+        stock_minimum: toNumber(m.stock_minimum),
+        prix_unitaire: toNumber(m.prix_unitaire),
+        pct_stock: toNumber(m.pct_stock),
+      }));
+    },
   });
 
   const { data: movements } = useQuery({

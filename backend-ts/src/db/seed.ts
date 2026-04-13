@@ -77,13 +77,26 @@ async function seed() {
 
     const operateurIds: number[] = [];
     for (const op of operateurs) {
-      const res = await client.query(
-        `INSERT INTO operateurs (nom, prenom, specialite, role) 
-         VALUES ($1, $2, $3, $4) 
-         RETURNING id`,
-        [op.nom, op.prenom, op.specialite, op.role]
+      const existing = await client.query(
+        `SELECT id FROM operateurs WHERE nom = $1 AND prenom = $2 LIMIT 1`,
+        [op.nom, op.prenom]
       );
-      operateurIds.push(res.rows[0].id);
+
+      if (existing.rows.length > 0) {
+        await client.query(
+          `UPDATE operateurs SET specialite = $1, role = $2 WHERE id = $3`,
+          [op.specialite, op.role, existing.rows[0].id]
+        );
+        operateurIds.push(existing.rows[0].id);
+      } else {
+        const res = await client.query(
+          `INSERT INTO operateurs (nom, prenom, specialite, role) 
+           VALUES ($1, $2, $3, $4) 
+           RETURNING id`,
+          [op.nom, op.prenom, op.specialite, op.role]
+        );
+        operateurIds.push(res.rows[0].id);
+      }
     }
 
     // ==========================================
@@ -104,21 +117,33 @@ async function seed() {
     const operatorPinHashes = await Promise.all(pins.operators.map(pin => bcrypt.hash(pin, 10)));
     
     // Admin user
-    await client.query(
-      `INSERT INTO users (nom, prenom, role, pin_hash)
-       VALUES ($1, $2, $3, $4)
-       ON CONFLICT DO NOTHING`,
-      ['Admin', 'System', 'ADMIN', adminPinHash]
+    const adminUpdate = await client.query(
+      `UPDATE users SET pin_hash = $1, actif = true
+       WHERE nom = $2 AND prenom = $3 AND role = $4`,
+      [adminPinHash, 'Admin', 'System', 'ADMIN']
     );
+    if (adminUpdate.rowCount === 0) {
+      await client.query(
+        `INSERT INTO users (nom, prenom, role, pin_hash)
+         VALUES ($1, $2, $3, $4)`,
+        ['Admin', 'System', 'ADMIN', adminPinHash]
+      );
+    }
     console.log(`   ✅ Admin created (PIN: ${pins.admin})`);
 
     // Manager user
-    await client.query(
-      `INSERT INTO users (nom, prenom, role, pin_hash)
-       VALUES ($1, $2, $3, $4)
-       ON CONFLICT DO NOTHING`,
-      ['Manager', 'Production', 'MANAGER', managerPinHash]
+    const managerUpdate = await client.query(
+      `UPDATE users SET pin_hash = $1, actif = true
+       WHERE nom = $2 AND prenom = $3 AND role = $4`,
+      [managerPinHash, 'Manager', 'Production', 'MANAGER']
     );
+    if (managerUpdate.rowCount === 0) {
+      await client.query(
+        `INSERT INTO users (nom, prenom, role, pin_hash)
+         VALUES ($1, $2, $3, $4)`,
+        ['Manager', 'Production', 'MANAGER', managerPinHash]
+      );
+    }
     console.log(`   ✅ Manager created (PIN: ${pins.manager})`);
 
     // Operator users (linked to operateurs)
@@ -129,12 +154,19 @@ async function seed() {
     ];
 
     for (let i = 0; i < operatorNames.length; i++) {
-      await client.query(
-        `INSERT INTO users (nom, prenom, role, pin_hash, operateur_id) 
-         VALUES ($1, $2, $3, $4, $5)
-         ON CONFLICT DO NOTHING`,
-        [operatorNames[i].nom, operatorNames[i].prenom, 'OPERATOR', operatorPinHashes[i], operateurIds[i]]
+      const opUser = operatorNames[i];
+      const opUserUpdate = await client.query(
+        `UPDATE users SET pin_hash = $1, operateur_id = $2, actif = true
+         WHERE nom = $3 AND prenom = $4 AND role = $5`,
+        [operatorPinHashes[i], operateurIds[i], opUser.nom, opUser.prenom, 'OPERATOR']
       );
+      if (opUserUpdate.rowCount === 0) {
+        await client.query(
+          `INSERT INTO users (nom, prenom, role, pin_hash, operateur_id) 
+           VALUES ($1, $2, $3, $4, $5)`,
+          [opUser.nom, opUser.prenom, 'OPERATOR', operatorPinHashes[i], operateurIds[i]]
+        );
+      }
       console.log(`   ✅ Operator ${operatorNames[i].prenom} created (PIN: ${pins.operators[i]})`);
     }
 
@@ -153,11 +185,16 @@ async function seed() {
     const clientIds: number[] = [];
     for (const cl of clients) {
       // Generate CLT code manually since finalizeNumber needs sequences
+      const clientCode = `CLT-${currentYear}-${String(clientIds.length + 1).padStart(4, '0')}`;
       const codeRes = await client.query(
         `INSERT INTO clients (code, nom, matricule_fiscal, ville) 
          VALUES ($1, $2, $3, $4) 
+         ON CONFLICT (code) DO UPDATE
+         SET nom = EXCLUDED.nom,
+             matricule_fiscal = EXCLUDED.matricule_fiscal,
+             ville = EXCLUDED.ville
          RETURNING id, code`,
-        [`CLT-${currentYear}-${String(clientIds.length + 1).padStart(4, '0')}`, cl.nom, cl.matricule_fiscal, cl.ville]
+        [clientCode, cl.nom, cl.matricule_fiscal, cl.ville]
       );
       clientIds.push(codeRes.rows[0].id);
       
@@ -187,11 +224,18 @@ async function seed() {
 
     const materiauIds: number[] = [];
     for (const mat of materiaux) {
+      const materiauCode = `MAT-${currentYear}-${String(materiauIds.length + 1).padStart(4, '0')}`;
       const res = await client.query(
         `INSERT INTO materiaux (code, nom, unite, stock_actuel, stock_minimum, prix_unitaire) 
          VALUES ($1, $2, $3, $4, $5, $6) 
+         ON CONFLICT (code) DO UPDATE
+         SET nom = EXCLUDED.nom,
+             unite = EXCLUDED.unite,
+             stock_actuel = EXCLUDED.stock_actuel,
+             stock_minimum = EXCLUDED.stock_minimum,
+             prix_unitaire = EXCLUDED.prix_unitaire
          RETURNING id`,
-        [`MAT-${currentYear}-${String(materiauIds.length + 1).padStart(4, '0')}`, mat.nom, mat.unite, mat.stock, mat.min, mat.prix]
+        [materiauCode, mat.nom, mat.unite, mat.stock, mat.min, mat.prix]
       );
       materiauIds.push(res.rows[0].id);
     }
@@ -208,11 +252,17 @@ async function seed() {
 
     const produitIds: number[] = [];
     for (const prod of produits) {
+      const produitCode = `SOFEM-${currentYear}-${String(produitIds.length + 1).padStart(4, '0')}`;
       const res = await client.query(
         `INSERT INTO produits (code, nom, description, unite, prix_vente_ht) 
          VALUES ($1, $2, $3, $4, $5) 
+         ON CONFLICT (code) DO UPDATE
+         SET nom = EXCLUDED.nom,
+             description = EXCLUDED.description,
+             unite = EXCLUDED.unite,
+             prix_vente_ht = EXCLUDED.prix_vente_ht
          RETURNING id`,
-        [`SOFEM-${currentYear}-${String(produitIds.length + 1).padStart(4, '0')}`, prod.nom, prod.description, prod.unite, prod.prix]
+        [produitCode, prod.nom, prod.description, prod.unite, prod.prix]
       );
       produitIds.push(res.rows[0].id);
     }
@@ -267,10 +317,15 @@ async function seed() {
 
     for (let i = 0; i < machines.length; i++) {
       const mach = machines[i];
+      const machineCode = `MCH-${currentYear}-${String(i + 1).padStart(4, '0')}`;
       await client.query(
         `INSERT INTO machines (code, nom, type, statut) 
-         VALUES ($1, $2, $3, $4)`,
-        [`MCH-${currentYear}-${String(i + 1).padStart(4, '0')}`, mach.nom, mach.type, mach.statut]
+         VALUES ($1, $2, $3, $4)
+         ON CONFLICT (code) DO UPDATE
+         SET nom = EXCLUDED.nom,
+             type = EXCLUDED.type,
+             statut = EXCLUDED.statut`,
+        [machineCode, mach.nom, mach.type, mach.statut]
       );
     }
 

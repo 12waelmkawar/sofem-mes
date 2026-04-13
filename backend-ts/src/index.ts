@@ -11,6 +11,16 @@ import { clientsRouter } from './routes/clients.js';
 import { operateursRouter } from './routes/operateurs.js';
 import { machinesRouter } from './routes/machines.js';
 import { operationTypesRouter } from './routes/operationTypes.js';
+import { ofRouter } from './routes/of.js';
+import { dashboardRouter } from './routes/dashboard.js';
+import { blRouter } from './routes/bl.js';
+import { qualiteRouter } from './routes/qualite.js';
+import { daRouter } from './routes/da.js';
+import { bcRouter } from './routes/bc.js';
+import { brRouter } from './routes/br.js';
+import { faRouter, maintRouter, reportsRouter, activityRouter } from './routes/purchasing.js';
+import { analyticsRouter, planningRouter, fournisseursRouter } from './routes/analytics.js';
+import { settingsRouter } from './routes/settings.js';
 
 // Load environment variables
 dotenv.config();
@@ -69,6 +79,21 @@ app.use('/api/clients', clientsRouter);
 app.use('/api/operateurs', operateursRouter);
 app.use('/api/machines', machinesRouter);
 app.use('/api/operation-types', operationTypesRouter);
+app.use('/api/of', ofRouter);
+app.use('/api/dashboard', dashboardRouter);
+app.use('/api/bl', blRouter);
+app.use('/api/qualite', qualiteRouter);
+app.use('/api/achats/da', daRouter);
+app.use('/api/achats/bc', bcRouter);
+app.use('/api/achats/br', brRouter);
+app.use('/api/achats/fa', faRouter);
+app.use('/api/maintenance', maintRouter);
+app.use('/api/rapports', reportsRouter);
+app.use('/api/notifications', activityRouter);
+app.use('/api/analytics', analyticsRouter);
+app.use('/api/planning', planningRouter);
+app.use('/api/fournisseurs', fournisseursRouter);
+app.use('/api/settings', settingsRouter);
 
 // ─── Error Handling ─────────────────────────────────────────────
 

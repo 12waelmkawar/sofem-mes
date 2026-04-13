@@ -6,11 +6,45 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="description" content="SOFEM MES - Manufacturing Execution System" />
     <title>SOFEM MES - Login</title>
-    
-    <!-- Google Fonts (section 2.1) -->
+
+    <!-- Inline critical styles — prevent font flash -->
+    <style>
+      html { font-family: system-ui, -apple-system, sans-serif; }
+      body { font-family: system-ui, -apple-system, sans-serif; margin: 0; background-color: #0a0a0a; color: #fafafa; }
+      /* Hide only when JS marks fonts as loading; defaults visible if script fails */
+      #root { opacity: 1; transition: opacity 0.15s ease; }
+      html.fonts-loading #root { opacity: 0; }
+      html.fonts-loaded #root { opacity: 1; }
+    </style>
+
+    <!-- Google Fonts — preload stylesheet for faster loading -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap">
     <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+
+    <!-- Show page once fonts are ready (with 2s fallback timeout) -->
+    <script>
+      var rootEl = document.documentElement;
+      rootEl.classList.add('fonts-loading');
+
+      var shown = false;
+      function showPage() {
+        if (shown) return;
+        shown = true;
+        rootEl.classList.remove('fonts-loading');
+        rootEl.classList.add('fonts-loaded');
+      }
+
+      if (document.fonts && document.fonts.ready) {
+        document.fonts.ready.then(showPage).catch(showPage);
+      } else {
+        showPage();
+      }
+
+      // Fallback: show content after 2s even if fonts haven't loaded
+      setTimeout(showPage, 2000);
+    </script>
   </head>
   <body>
     <div id="root"></div>

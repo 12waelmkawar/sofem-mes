@@ -15,6 +15,11 @@ interface Produit {
   bom: { materiau_id: number; materiau_nom: string; materiau_code: string; unite: string; quantite_par_unite: number }[];
 }
 
+const toNumber = (value: unknown): number => {
+  const parsed = typeof value === 'number' ? value : Number(value);
+  return Number.isFinite(parsed) ? parsed : 0;
+};
+
 export default function ProductsPage() {
   const { isManager } = useAuth();
   const queryClient = useQueryClient();
@@ -24,7 +29,16 @@ export default function ProductsPage() {
 
   const { data } = useQuery({
     queryKey: ['produits'],
-    queryFn: () => api.get<{ data: Produit[] }>('/api/produits?limit=500').then(r => r.data.data),
+    queryFn: async () => {
+      const rows = await api.get<{ data: Produit[] }>('/api/produits?limit=500').then(r => r.data.data || []);
+      return rows.map((p) => ({
+        ...p,
+        prix_vente_ht: toNumber(p.prix_vente_ht),
+        bom: Array.isArray(p.bom)
+          ? p.bom.map((b) => ({ ...b, quantite_par_unite: toNumber(b.quantite_par_unite) }))
+          : [],
+      }));
+    },
   });
 
   const { data: materiaux } = useQuery({

@@ -268,7 +268,7 @@ router.post('/mouvement', requireAuth, async (req: AuthRequest, res: Response) =
       }
 
       const mat = matRes.rows[0];
-      const stock_avant = mat.stock_actuel;
+      const stock_avant = parseFloat(mat.stock_actuel);
       let stock_apres: number;
 
       if (type === 'ENTREE') {
