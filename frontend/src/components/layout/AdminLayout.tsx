@@ -129,7 +129,7 @@ export default function AdminLayout() {
           })}
         </nav>
         <div className="px-4 py-3 border-t border-[var(--border,#2a2a2a)]">
-          <p className="text-[8px] font-['IBM_Plex_Mono'] text-[var(--muted,#737373)]">SOFEM MES v6.0<br />SMARTMOVE - 2025</p>
+          <p className="text-[8px] font-['IBM_Plex_Mono'] text-[var(--muted,#737373)]">SOFEM MES v6.0<br />SMARTMOVE - 2026</p>
         </div>
       </aside>
 

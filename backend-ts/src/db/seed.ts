@@ -367,7 +367,7 @@ async function seed() {
       { groupe: 'alertes', cle: 'echeance_alert_days', valeur: '3', type: 'number', description: 'Jours avant échéance pour alerte' },
       
       // PDF
-      { groupe: 'pdf', cle: 'pdf_footer_text', valeur: 'SOFEM MES - SMARTMOVE 2025', type: 'string', description: 'Texte du pied de page PDF' },
+      { groupe: 'pdf', cle: 'pdf_footer_text', valeur: 'SOFEM MES - SMARTMOVE 2026', type: 'string', description: 'Texte du pied de page PDF' },
       
       // Acces
       { groupe: 'acces', cle: 'pin_min_length', valeur: '4', type: 'number', description: 'Longueur minimale du PIN' },

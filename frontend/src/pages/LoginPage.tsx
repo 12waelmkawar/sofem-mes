@@ -275,7 +275,7 @@ export default function LoginPage() {
 
         {/* Footer */}
         <p className="mt-6 text-[9px] font-['IBM_Plex_Mono'] text-neutral-600 text-center relative z-10">
-          SMARTMOVE - Mahmoud Njeh - © 2025
+          SMARTMOVE - Mahmoud Njeh - © 2026
         </p>
       </div>
     </div>
