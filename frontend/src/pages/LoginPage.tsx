@@ -256,7 +256,7 @@ export default function LoginPage() {
               : 'bg-neutral-800 text-neutral-600 opacity-40 cursor-not-allowed'
           }`}
         >
-          {loading ? 'Connexion...' : 'Connexion'}
+          {loading ? 'Connexion...' : 'Se connecter'}
         </button>
 
         {/* Error */}
