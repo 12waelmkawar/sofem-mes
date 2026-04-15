@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from './store/authStore';
 import LoginPage from './pages/LoginPage';
+import OperatorDashboard from './pages/operator/OperatorDashboard';
 import AdminLayout from './components/layout/AdminLayout';
 import DashboardPage from './pages/admin/DashboardPage';
 import OrdersPage from './pages/admin/OrdersPage';
@@ -82,12 +83,7 @@ export default function App() {
       <Route path="/login" element={<LoginPage />} />
       <Route path="/operator" element={
         <AuthGuard allowedRoles={['OPERATOR']}>
-          <div className="min-h-screen bg-[var(--bg)] text-[var(--text)] flex items-center justify-center">
-            <div className="text-center">
-              <h1 className="font-['Bebas_Neue'] text-4xl tracking-wider">Operator Dashboard</h1>
-              <p className="mt-2 text-sm text-[var(--muted)] font-['IBM_Plex_Mono']">Phase 7+</p>
-            </div>
-          </div>
+          <OperatorDashboard />
         </AuthGuard>
       } />
       <Route path="/admin" element={
